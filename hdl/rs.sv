@@ -58,7 +58,9 @@ module rs #(
     output reg  [11:0] issue_L,
     output reg  [63:0] issue_pc,
     output reg  [63:0] issue_rd_val,
-    output wire        full
+    output wire        full,
+    output wire        one_avail,
+    output wire        two_avail
 );
     reg        v       [0:DEPTH-1];
     reg [4:0]  op      [0:DEPTH-1];
@@ -103,6 +105,8 @@ module rs #(
     end
 
     assign full = (free_count < 2);
+    assign one_avail = (free_count != 0);
+    assign two_avail = (free_count >= 2);
     always @(posedge clk) begin
         if (reset || flush) begin
             for (i = 0; i < DEPTH; i = i + 1) v[i] <= 0;

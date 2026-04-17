@@ -40,7 +40,9 @@ module lsq (
     output reg  [63:0] mem_wr_addr,
     output reg  [63:0] mem_wr_data,
     output wire        ld_full,
-    output wire        st_full
+    output wire        st_full,
+    output wire        ld_one_avail,
+    output wire        st_one_avail
 );
     localparam LQ_DEPTH = 4;
     localparam SQ_DEPTH = 4;
@@ -67,6 +69,8 @@ module lsq (
 
     assign ld_full = (lq_count >= LQ_DEPTH - 1);
     assign st_full = (sq_count >= SQ_DEPTH - 1);
+    assign ld_one_avail = (lq_count < LQ_DEPTH);
+    assign st_one_avail = (sq_count < SQ_DEPTH);
 
     integer i;
     reg [63:0] fwd_data;

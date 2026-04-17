@@ -145,19 +145,22 @@ wire        r1_s_rdy,    r1_t_rdy;
 wire [63:0] r1_old_val;
 wire        r1_old_rdy;
 
-wire        free_avail;
+wire        free_avail, free_one_avail;
 
 // ---------------------------------------------------------------------------
 // ROB allocation indices
 // ---------------------------------------------------------------------------
 wire [3:0]  rob0_idx, rob1_idx;
-wire        rob_full;
+wire        rob_full, rob_one_avail;
 
 // ---------------------------------------------------------------------------
 // RS full signals
 // ---------------------------------------------------------------------------
 wire alu_rs_full, fpu_rs_full;
 wire ld_full, st_full;
+wire alu_rs_one_avail, alu_rs_two_avail;
+wire fpu_rs_one_avail, fpu_rs_two_avail;
+wire ld_one_avail, st_one_avail;
 
 // ---------------------------------------------------------------------------
 // ALU issue wires
@@ -273,7 +276,33 @@ wire        commit0_is_store, commit1_is_store;
 // ---------------------------------------------------------------------------
 // Stall and dispatch enables
 // ---------------------------------------------------------------------------
-wire stall = rob_full || alu_rs_full || fpu_rs_full || ld_full || st_full || !free_avail;
+wire dec0_uses_alu_rs = (dec0_fu == FU_ALU) && !dec0_is_halt;
+wire dec1_uses_alu_rs = (dec1_fu == FU_ALU) && !dec1_is_halt;
+wire dec0_uses_fpu_rs = (dec0_fu == FU_FPU);
+wire dec1_uses_fpu_rs = (dec1_fu == FU_FPU);
+wire dec0_uses_ldq = (dec0_fu == FU_LOAD);
+wire dec1_uses_ldq = (dec1_fu == FU_LOAD);
+wire dec0_uses_stq = (dec0_fu == FU_STORE);
+wire dec1_uses_stq = (dec1_fu == FU_STORE);
+
+wire slot0_ok =
+    !flush_sig && !halt_dispatched && rob_one_avail &&
+    (!dec0_reg_wr || free_one_avail) &&
+    (!dec0_uses_alu_rs || alu_rs_one_avail) &&
+    (!dec0_uses_fpu_rs || fpu_rs_one_avail) &&
+    (!dec0_uses_ldq || ld_one_avail) &&
+    (!dec0_uses_stq || st_one_avail);
+
+wire slot1_ok =
+    !flush_sig && !halt_dispatched && !dec0_is_halt && !rob_full &&
+    (!dec1_reg_wr || ((dec0_reg_wr && dec1_reg_wr) ? free_avail : free_one_avail)) &&
+    (!dec1_uses_alu_rs || ((dec0_uses_alu_rs && dec1_uses_alu_rs) ? alu_rs_two_avail : alu_rs_one_avail)) &&
+    (!dec1_uses_fpu_rs || ((dec0_uses_fpu_rs && dec1_uses_fpu_rs) ? fpu_rs_two_avail : fpu_rs_one_avail)) &&
+    (!dec1_uses_ldq || (!dec0_uses_ldq && ld_one_avail)) &&
+    (!dec1_uses_stq || (!dec0_uses_stq && st_one_avail));
+
+wire bundle_ok = slot0_ok && (!f_valid1 || dec0_is_halt || slot1_ok);
+wire stall = f_valid0 && !bundle_ok;
 
 // Once halt is dispatched, stop fetching more instructions.
 reg halt_dispatched;
@@ -283,8 +312,8 @@ always @(posedge clk) begin
         halt_dispatched <= 1;
 end
 
-wire dispatch0_en = f_valid0 && !stall && !flush_sig && !halt_dispatched;
-wire dispatch1_en = f_valid1 && !stall && !flush_sig && !dec0_is_halt && !halt_dispatched;
+wire dispatch0_en = f_valid0 && bundle_ok && slot0_ok;
+wire dispatch1_en = f_valid1 && bundle_ok && !dec0_is_halt && slot1_ok;
 
 wire ren0_en = dispatch0_en && dec0_reg_wr;
 wire ren1_en = dispatch1_en && dec1_reg_wr;
@@ -466,7 +495,7 @@ rat rat_inst (
     .rename1_s_val(r1_s_val), .rename1_t_val(r1_t_val),
     .rename1_s_rdy(r1_s_rdy), .rename1_t_rdy(r1_t_rdy),
     .rename1_old_val(r1_old_val), .rename1_old_rdy(r1_old_rdy),
-    .free_avail(free_avail),
+    .free_avail(free_avail), .free_one_avail(free_one_avail),
     .cdb0_valid(cdb0_v), .cdb0_preg(cdb0_preg), .cdb0_data(cdb0_data),
     .cdb1_valid(cdb1_v), .cdb1_preg(cdb1_preg), .cdb1_data(cdb1_data),
     .commit0_en(commit0_en), .commit0_areg(commit0_areg),
@@ -482,14 +511,14 @@ rat rat_inst (
 rs #(.DEPTH(8)) alu_rs (
     .clk(clk), .reset(reset),
     .flush(flush_sig), .flush_rob_idx(flush_rob_idx),
-    .disp0_en(dispatch0_en && dec0_fu == FU_ALU),
+    .disp0_en(dispatch0_en && dec0_uses_alu_rs),
     .disp0_op(dec0_op), .disp0_dest_preg(r0_new_preg), .disp0_rob_idx(rob0_idx),
     .disp0_s_preg(r0_s_preg), .disp0_s_val(r0_s_val), .disp0_s_rdy(r0_s_rdy),
     .disp0_t_preg(r0_t_preg), .disp0_t_val(r0_t_val), .disp0_t_rdy(r0_t_rdy),
     .disp0_L(dec0_L), .disp0_pc(f_pc0),
     .disp0_rd_preg(r0_old_preg), .disp0_rd_val(r0_old_val),
     .disp0_rd_rdy(is_brgt0 ? r0_old_rdy : 1'b1),
-    .disp1_en(dispatch1_en && dec1_fu == FU_ALU),
+    .disp1_en(dispatch1_en && dec1_uses_alu_rs),
     .disp1_op(dec1_op), .disp1_dest_preg(r1_new_preg), .disp1_rob_idx(rob1_idx),
     .disp1_s_preg(r1_s_preg), .disp1_s_val(r1_s_val), .disp1_s_rdy(r1_s_rdy),
     .disp1_t_preg(r1_t_preg), .disp1_t_val(r1_t_val), .disp1_t_rdy(r1_t_rdy),
@@ -502,7 +531,7 @@ rs #(.DEPTH(8)) alu_rs (
     .issue_dest_preg(alu0_dest), .issue_rob_idx(alu0_rob),
     .issue_src1(alu0_src1), .issue_src2(alu0_src2),
     .issue_L(alu0_iss_L), .issue_pc(alu0_pc), .issue_rd_val(alu0_rdv),
-    .full(alu_rs_full)
+    .full(alu_rs_full), .one_avail(alu_rs_one_avail), .two_avail(alu_rs_two_avail)
 );
 
 // Second integer RS feeds ALU1 (dispatches nothing — only handles overflow
@@ -520,13 +549,13 @@ assign alu1_iss_L = 12'b0; assign alu1_pc = 64'b0; assign alu1_rdv = 64'b0;
 rs #(.DEPTH(8)) fpu_rs (
     .clk(clk), .reset(reset),
     .flush(flush_sig), .flush_rob_idx(flush_rob_idx),
-    .disp0_en(dispatch0_en && dec0_fu == FU_FPU),
+    .disp0_en(dispatch0_en && dec0_uses_fpu_rs),
     .disp0_op(dec0_op), .disp0_dest_preg(r0_new_preg), .disp0_rob_idx(rob0_idx),
     .disp0_s_preg(r0_s_preg), .disp0_s_val(r0_s_val), .disp0_s_rdy(r0_s_rdy),
     .disp0_t_preg(r0_t_preg), .disp0_t_val(r0_t_val), .disp0_t_rdy(r0_t_rdy),
     .disp0_L(dec0_L), .disp0_pc(f_pc0),
     .disp0_rd_preg(6'b0), .disp0_rd_val(64'b0), .disp0_rd_rdy(1'b1),
-    .disp1_en(dispatch1_en && dec1_fu == FU_FPU),
+    .disp1_en(dispatch1_en && dec1_uses_fpu_rs),
     .disp1_op(dec1_op), .disp1_dest_preg(r1_new_preg), .disp1_rob_idx(rob1_idx),
     .disp1_s_preg(r1_s_preg), .disp1_s_val(r1_s_val), .disp1_s_rdy(r1_s_rdy),
     .disp1_t_preg(r1_t_preg), .disp1_t_val(r1_t_val), .disp1_t_rdy(r1_t_rdy),
@@ -538,7 +567,7 @@ rs #(.DEPTH(8)) fpu_rs (
     .issue_dest_preg(fpu0_dest), .issue_rob_idx(fpu0_rob),
     .issue_src1(fpu0_src1), .issue_src2(fpu0_src2),
     .issue_L(fpu_dummy_L), .issue_pc(fpu_dummy_pc), .issue_rd_val(fpu_dummy_rdv),
-    .full(fpu_rs_full)
+    .full(fpu_rs_full), .one_avail(fpu_rs_one_avail), .two_avail(fpu_rs_two_avail)
 );
 // Second FPU RS is disabled (single FP RS for simplicity)
 assign fpu1_iss_valid = 1'b0;
@@ -619,24 +648,27 @@ assign fpu1_orob = fpu1_tag5[3:0];
 // ---------------------------------------------------------------------------
 lsq lsq_inst (
     .clk(clk), .reset(reset), .flush(flush_sig),
-    .ld_disp_en(dispatch0_en && dec0_fu == FU_LOAD),
-    .ld_dest_preg(r0_new_preg), .ld_rob_idx(rob0_idx),
-    .ld_base(r0_s_val), .ld_L(dec0_L),
-    .st_disp_en(dispatch0_en && dec0_fu == FU_STORE),
-    .st_rob_idx(rob0_idx),
-    .st_base(r0_s_val),  // eff_s0=rd for store → rd val
-    .st_data(r0_t_val),  // eff_t0=rs for store → rs val
-    .st_data_rdy(r0_t_rdy), .st_data_preg(r0_t_preg),
-    .st_L(dec0_L),
+    .ld_disp_en((dispatch0_en && dec0_uses_ldq) || (!dec0_uses_ldq && dispatch1_en && dec1_uses_ldq)),
+    .ld_dest_preg((dispatch0_en && dec0_uses_ldq) ? r0_new_preg : r1_new_preg),
+    .ld_rob_idx((dispatch0_en && dec0_uses_ldq) ? rob0_idx : rob1_idx),
+    .ld_base((dispatch0_en && dec0_uses_ldq) ? r0_s_val : r1_s_val),
+    .ld_L((dispatch0_en && dec0_uses_ldq) ? dec0_L : dec1_L),
+    .st_disp_en((dispatch0_en && dec0_uses_stq) || (!dec0_uses_stq && dispatch1_en && dec1_uses_stq)),
+    .st_rob_idx((dispatch0_en && dec0_uses_stq) ? rob0_idx : rob1_idx),
+    .st_base((dispatch0_en && dec0_uses_stq) ? r0_s_val : r1_s_val),
+    .st_data((dispatch0_en && dec0_uses_stq) ? r0_t_val : r1_t_val),
+    .st_data_rdy((dispatch0_en && dec0_uses_stq) ? r0_t_rdy : r1_t_rdy),
+    .st_data_preg((dispatch0_en && dec0_uses_stq) ? r0_t_preg : r1_t_preg),
+    .st_L((dispatch0_en && dec0_uses_stq) ? dec0_L : dec1_L),
     .cdb0_valid(cdb0_v), .cdb0_preg(cdb0_preg), .cdb0_data(cdb0_data),
     .cdb1_valid(cdb1_v), .cdb1_preg(cdb1_preg), .cdb1_data(cdb1_data),
     .mem_rd_addr(mem_rd_addr), .mem_rd_data(mem_rd_data),
     .ld_cdb_valid(lsq_ld_cdb_v), .ld_cdb_data(lsq_ld_cdb_data),
     .ld_cdb_preg(lsq_ld_cdb_preg), .ld_cdb_rob(lsq_ld_cdb_rob),
-    .st_commit_en(commit0_en && commit0_is_store),
-    .st_commit_rob(rob0_idx),
+    .st_commit_en((commit0_en && commit0_is_store) || (!commit0_is_store && commit1_en && commit1_is_store)),
+    .st_commit_rob(4'b0),
     .mem_wr_en(mem_wr_en), .mem_wr_addr(mem_wr_addr), .mem_wr_data(mem_wr_data),
-    .ld_full(ld_full), .st_full(st_full)
+    .ld_full(ld_full), .st_full(st_full), .ld_one_avail(ld_one_avail), .st_one_avail(st_one_avail)
 );
 
 // ---------------------------------------------------------------------------
@@ -658,7 +690,7 @@ rob rob_inst (
     .alloc1_is_branch(dec1_is_branch), .alloc1_is_halt(dec1_is_halt),
     .alloc1_pred_pc(f_pred_pc), .alloc1_rat_snap(rat_snap),
     .alloc1_idx(rob1_idx),
-    .rob_full(rob_full),
+    .rob_full(rob_full), .rob_one_avail(rob_one_avail),
     .cdb0_valid(cdb0_v), .cdb0_rob_idx(cdb0_rob),
     .cdb0_result(cdb0_data), .cdb0_mis_pred(cdb0_mis), .cdb0_actual_pc(cdb0_apc),
     .cdb1_valid(cdb1_v), .cdb1_rob_idx(cdb1_rob),

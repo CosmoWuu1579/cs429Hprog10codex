@@ -30,6 +30,7 @@ module rob (
     output wire [3:0]  alloc1_idx,
 
     output wire        rob_full,
+    output wire        rob_one_avail,
 
     // CDB write-back: mark entries complete
     input  wire        cdb0_valid,
@@ -96,6 +97,7 @@ module rob (
     assign alloc0_idx = tail;
     assign alloc1_idx = tail + 1'b1;
     assign rob_full = (count >= ROB_SIZE - 1);
+    assign rob_one_avail = (count < ROB_SIZE);
 
     integer i;
 
@@ -193,7 +195,7 @@ module rob (
             end else begin
                 if (alloc0_en) begin
                     r_valid    [tail]   <= 1;
-                    r_ready    [tail]   <= alloc0_is_store;
+                    r_ready    [tail]   <= alloc0_is_store || alloc0_is_halt;
                     r_fu_type  [tail]   <= alloc0_fu_type;
                     r_dareg    [tail]   <= alloc0_dest_areg;
                     r_dpreg    [tail]   <= alloc0_dest_preg;
@@ -209,7 +211,7 @@ module rob (
                 end
                 if (alloc1_en) begin
                     r_valid    [tail+1] <= 1;
-                    r_ready    [tail+1] <= alloc1_is_store;
+                    r_ready    [tail+1] <= alloc1_is_store || alloc1_is_halt;
                     r_fu_type  [tail+1] <= alloc1_fu_type;
                     r_dareg    [tail+1] <= alloc1_dest_areg;
                     r_dpreg    [tail+1] <= alloc1_dest_preg;

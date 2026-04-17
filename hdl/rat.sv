@@ -73,6 +73,7 @@ module rat (
 
     // Free list status (stall if < 2 free regs)
     output wire        free_avail,    // 1 if at least 2 physical regs are free
+    output wire        free_one_avail,
 
     // CDB write (update physical reg file, mark ready)
     input  wire        cdb0_valid,
@@ -157,6 +158,7 @@ module rat (
         end
     end
 
+    assign free_one_avail = found0;
     assign free_avail = found0 && found1;
     assign rename0_new_preg = free0_idx;
     assign rename1_new_preg = free1_idx;
@@ -164,9 +166,12 @@ module rat (
     assign rename0_old_preg = rat_map[rename0_d];
     assign rename0_s_preg = rat_map[rename0_s];
     assign rename0_t_preg = rat_map[rename0_t];
-    assign rename1_old_preg = (rename0_en && (rename1_d == rename0_d)) ? free0_idx : rat_map[rename1_d];
-    assign rename1_s_preg = (rename0_en && (rename1_s == rename0_d)) ? free0_idx : rat_map[rename1_s];
-    assign rename1_t_preg = (rename0_en && (rename1_t == rename0_d)) ? free0_idx : rat_map[rename1_t];
+    wire rename1_old_dep = rename0_en && (rename1_d == rename0_d);
+    wire rename1_s_dep = rename0_en && (rename1_s == rename0_d);
+    wire rename1_t_dep = rename0_en && (rename1_t == rename0_d);
+    assign rename1_old_preg = rename1_old_dep ? free0_idx : rat_map[rename1_d];
+    assign rename1_s_preg = rename1_s_dep ? free0_idx : rat_map[rename1_s];
+    assign rename1_t_preg = rename1_t_dep ? free0_idx : rat_map[rename1_t];
 
     wire [5:0] s0_idx = rename0_s_preg;
     wire [5:0] t0_idx = rename0_t_preg;
@@ -178,16 +183,19 @@ module rat (
     assign rename0_s_val   = ((s0_idx < 32) && arch_backed[s0_idx[4:0]]) ? arch_regs_in[s0_idx[4:0]] : phys_regs[s0_idx];
     assign rename0_t_val   = ((t0_idx < 32) && arch_backed[t0_idx[4:0]]) ? arch_regs_in[t0_idx[4:0]] : phys_regs[t0_idx];
     assign rename0_old_val = ((d0_idx < 32) && arch_backed[d0_idx[4:0]]) ? arch_regs_in[d0_idx[4:0]] : phys_regs[d0_idx];
-    assign rename1_s_val   = ((s1_idx < 32) && arch_backed[s1_idx[4:0]]) ? arch_regs_in[s1_idx[4:0]] : phys_regs[s1_idx];
-    assign rename1_t_val   = ((t1_idx < 32) && arch_backed[t1_idx[4:0]]) ? arch_regs_in[t1_idx[4:0]] : phys_regs[t1_idx];
-    assign rename1_old_val = ((d1_idx < 32) && arch_backed[d1_idx[4:0]]) ? arch_regs_in[d1_idx[4:0]] : phys_regs[d1_idx];
+    assign rename1_s_val   = rename1_s_dep ? 64'd0 :
+                             (((s1_idx < 32) && arch_backed[s1_idx[4:0]]) ? arch_regs_in[s1_idx[4:0]] : phys_regs[s1_idx]);
+    assign rename1_t_val   = rename1_t_dep ? 64'd0 :
+                             (((t1_idx < 32) && arch_backed[t1_idx[4:0]]) ? arch_regs_in[t1_idx[4:0]] : phys_regs[t1_idx]);
+    assign rename1_old_val = rename1_old_dep ? 64'd0 :
+                             (((d1_idx < 32) && arch_backed[d1_idx[4:0]]) ? arch_regs_in[d1_idx[4:0]] : phys_regs[d1_idx]);
 
     assign rename0_s_rdy = phys_rdy[rename0_s_preg];
     assign rename0_t_rdy = phys_rdy[rename0_t_preg];
     assign rename0_old_rdy = phys_rdy[rename0_old_preg];
-    assign rename1_s_rdy = phys_rdy[rename1_s_preg];
-    assign rename1_t_rdy = phys_rdy[rename1_t_preg];
-    assign rename1_old_rdy = phys_rdy[(rename0_en && (rename1_d == rename0_d)) ? free0_idx : rat_map[rename1_d]];
+    assign rename1_s_rdy = rename1_s_dep ? 1'b0 : phys_rdy[rename1_s_preg];
+    assign rename1_t_rdy = rename1_t_dep ? 1'b0 : phys_rdy[rename1_t_preg];
+    assign rename1_old_rdy = rename1_old_dep ? 1'b0 : phys_rdy[rat_map[rename1_d]];
 
     always @(posedge clk) begin
         reg [63:0] recovered_free_list;
