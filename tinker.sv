@@ -227,6 +227,9 @@ wire [3:0]  lsq_ld_cdb_rob;
 wire        mem_wr_en;
 wire [63:0] mem_wr_addr, mem_wr_data;
 wire [63:0] mem_rd_addr, mem_rd_data;
+wire [63:0] core_mem_rd_addr;
+wire        core_mem_wr_en;
+wire [63:0] core_mem_wr_addr, core_mem_wr_data;
 
 // ---------------------------------------------------------------------------
 // CDB (2 buses)
@@ -303,8 +306,8 @@ memory memory (
     .clk(clk), .reset(reset),
     .pc_address(fetch_pc0_addr), .instruction(mem_instr0),
     .pc_address2(fetch_pc1_addr), .instruction2(mem_instr1),
-    .rd_addr(mem_rd_addr), .rd_data(mem_rd_data),
-    .mem_write(mem_wr_en), .wr_addr(mem_wr_addr), .wr_data(mem_wr_data)
+    .rd_addr(core_mem_rd_addr), .rd_data(mem_rd_data),
+    .mem_write(core_mem_wr_en), .wr_addr(core_mem_wr_addr), .wr_data(core_mem_wr_data)
 );
 
 // ---------------------------------------------------------------------------
@@ -579,6 +582,15 @@ always @(posedge clk) begin
     end
 end
 
+assign core_mem_rd_addr =
+    (alu0_iss_valid && alu0_mem_rd) ? alu0_mem_addr : mem_rd_addr;
+assign core_mem_wr_en =
+    (alu0_iss_valid && alu0_mem_wr) ? 1'b1 : mem_wr_en;
+assign core_mem_wr_addr =
+    (alu0_iss_valid && alu0_mem_wr) ? alu0_mem_addr : mem_wr_addr;
+assign core_mem_wr_data =
+    (alu0_iss_valid && alu0_mem_wr) ? alu0_mem_wdata : mem_wr_data;
+
 // ---------------------------------------------------------------------------
 // FPU instances
 // ---------------------------------------------------------------------------
@@ -622,7 +634,7 @@ lsq lsq_inst (
     .ld_cdb_valid(lsq_ld_cdb_v), .ld_cdb_data(lsq_ld_cdb_data),
     .ld_cdb_preg(lsq_ld_cdb_preg), .ld_cdb_rob(lsq_ld_cdb_rob),
     .st_commit_en(commit0_en && commit0_is_store),
-    .st_commit_rob(4'b0),
+    .st_commit_rob(rob0_idx),
     .mem_wr_en(mem_wr_en), .mem_wr_addr(mem_wr_addr), .mem_wr_data(mem_wr_data),
     .ld_full(ld_full), .st_full(st_full)
 );

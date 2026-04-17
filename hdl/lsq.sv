@@ -154,7 +154,7 @@ module lsq (
             end
 
             mem_wr_en <= 0;
-            if (st_commit_en && sq_v[sq_head] && sq_drdy[sq_head] && (sq_rob[sq_head] == st_commit_rob)) begin
+            if (st_commit_en && sq_v[sq_head] && sq_drdy[sq_head]) begin
                 mem_wr_en   <= 1;
                 mem_wr_addr <= sq_addr[sq_head];
                 mem_wr_data <= sq_data[sq_head];

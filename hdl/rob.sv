@@ -87,9 +87,12 @@ module rob (
     reg [3:0]  head, tail;
     reg [4:0]  count; // 0..16
 
-    reg [3:0] head1;
-    reg head0_ready;
-    reg head1_ready;
+    wire [3:0] head1 = head + 1'b1;
+    wire can_commit0 = r_valid[head] && r_ready[head];
+    wire flush0 = can_commit0 && r_is_branch[head] && r_mis_pred[head];
+    wire can_commit1 = can_commit0 && !r_is_halt[head] && !flush0 &&
+                       r_valid[head1] && r_ready[head1] && !r_is_halt[head1];
+    wire flush1 = can_commit1 && r_is_branch[head1] && r_mis_pred[head1];
     assign alloc0_idx = tail;
     assign alloc1_idx = tail + 1'b1;
     assign rob_full = (count >= ROB_SIZE - 1);
@@ -100,6 +103,7 @@ module rob (
         reg [1:0] commit_cnt;
         reg [1:0] alloc_cnt;
         reg [3:0] next_head;
+        reg       do_flush;
 
         if (reset) begin
             for (i = 0; i < ROB_SIZE; i = i + 1) begin
@@ -108,18 +112,18 @@ module rob (
             head <= 0; tail <= 0; count <= 0;
             commit0_en <= 0; commit1_en <= 0;
             flush <= 0; hlt <= 0;
+            flush_pc <= 0;
+            flush_rat_snap <= 0;
+            flush_rob_idx <= 0;
         end else begin
-            head1 = head + 1'b1;
-            head0_ready = r_valid[head] && r_ready[head];
-            head1_ready = head0_ready && !r_is_halt[head] &&
-                          !(r_is_branch[head] && (r_actual_pc[head] != r_pred_pc[head])) &&
-                          r_valid[head1] && r_ready[head1] && !r_is_halt[head1];
             flush      <= 0;
             commit0_en <= 0;
             commit1_en <= 0;
+            hlt        <= 0;
             commit_cnt  = 0;
             alloc_cnt   = 0;
             next_head   = head;
+            do_flush    = 0;
 
             if (cdb0_valid) begin
                 r_ready    [cdb0_rob_idx] <= 1;
@@ -134,7 +138,7 @@ module rob (
                 r_actual_pc[cdb1_rob_idx] <= cdb1_actual_pc;
             end
 
-            if (head0_ready) begin
+            if (can_commit0) begin
                 commit0_en <= 1;
                 commit0_areg <= r_dareg[head];
                 commit0_preg <= r_dpreg[head];
@@ -147,17 +151,15 @@ module rob (
                 next_head         = head + 1'b1;
 
                 if (r_is_halt[head]) begin
-                    hlt       <= 1;
-                end else if (r_is_branch[head] && (r_actual_pc[head] != r_pred_pc[head])) begin
+                    hlt <= 1;
+                end else if (flush0) begin
                     flush          <= 1;
                     flush_pc       <= r_actual_pc[head];
                     flush_rat_snap <= r_rat_snap [head];
                     flush_rob_idx  <= head;
-                    for (i = 0; i < ROB_SIZE; i = i + 1)
-                        r_valid[i] <= 0;
-                    head <= 0; tail <= 0; count <= 0;
+                    do_flush       = 1;
                 end else begin
-                    if (head1_ready) begin
+                    if (can_commit1) begin
                         commit1_en <= 1;
                         commit1_areg <= r_dareg[head1];
                         commit1_preg <= r_dpreg[head1];
@@ -169,23 +171,29 @@ module rob (
                         commit_cnt        = 2;
                         next_head         = head + 2'd2;
 
-                        if (r_is_branch[head1] && (r_actual_pc[head1] != r_pred_pc[head1])) begin
+                        if (flush1) begin
                             flush          <= 1;
                             flush_pc       <= r_actual_pc[head1];
                             flush_rat_snap <= r_rat_snap [head1];
                             flush_rob_idx  <= head1;
-                            for (i = 0; i < ROB_SIZE; i = i + 1)
-                                r_valid[i] <= 0;
-                            head <= 0; tail <= 0; count <= 0;
+                            do_flush       = 1;
                         end
                     end
                 end
             end
 
-            if (!flush) begin
+            if (do_flush) begin
+                for (i = 0; i < ROB_SIZE; i = i + 1) begin
+                    r_valid[i] <= 0;
+                    r_ready[i] <= 0;
+                end
+                head <= 0;
+                tail <= 0;
+                count <= 0;
+            end else begin
                 if (alloc0_en) begin
                     r_valid    [tail]   <= 1;
-                    r_ready    [tail]   <= 0;
+                    r_ready    [tail]   <= alloc0_is_store;
                     r_fu_type  [tail]   <= alloc0_fu_type;
                     r_dareg    [tail]   <= alloc0_dest_areg;
                     r_dpreg    [tail]   <= alloc0_dest_preg;
@@ -201,7 +209,7 @@ module rob (
                 end
                 if (alloc1_en) begin
                     r_valid    [tail+1] <= 1;
-                    r_ready    [tail+1] <= 0;
+                    r_ready    [tail+1] <= alloc1_is_store;
                     r_fu_type  [tail+1] <= alloc1_fu_type;
                     r_dareg    [tail+1] <= alloc1_dest_areg;
                     r_dpreg    [tail+1] <= alloc1_dest_preg;
