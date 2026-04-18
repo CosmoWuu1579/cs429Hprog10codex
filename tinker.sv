@@ -522,7 +522,7 @@ rs #(.DEPTH(8)) alu_rs (
     .disp0_s_preg(r0_s_preg), .disp0_s_val(r0_s_val), .disp0_s_rdy(r0_s_rdy), .disp0_s_block_cdb(1'b0),
     .disp0_t_preg(r0_t_preg), .disp0_t_val(r0_t_val), .disp0_t_rdy(r0_t_rdy), .disp0_t_block_cdb(1'b0),
     .disp0_L(dec0_L), .disp0_pc(f_pc0),
-    .disp0_ft_pc(dispatch1_en ? (f_pc0 + 64'd8) : (f_pc0 + 64'd4)),
+    .disp0_ft_pc(f_valid1 ? (f_pc0 + 64'd8) : (f_pc0 + 64'd4)),
     .disp0_pred_pc(f_pred_pc),
     .disp0_rd_preg(r0_old_preg), .disp0_rd_val(r0_old_val),
     .disp0_rd_rdy(is_brgt0 ? r0_old_rdy : 1'b1), .disp0_rd_block_cdb(1'b0),
@@ -633,7 +633,8 @@ always @(posedge clk) begin
         alu0_rob_r  <= alu0_rob;
         alu0_mis_r  <= alu0_iss_valid &&
                        alu0_is_branch &&
-                       (alu0_actual_fetch_pc != alu0_pred_pc);
+                       ((alu0_actual_fetch_pc != alu0_pred_pc) ||
+                        (alu0_taken_now && (alu0_ft_pc != (alu0_pc + 64'd4))));
         alu0_apc_r  <= alu0_actual_fetch_pc;
         alu0_pc_r   <= alu0_pc;
         alu0_br_r   <= alu0_iss_valid && alu0_is_branch;
@@ -645,7 +646,8 @@ always @(posedge clk) begin
         alu1_rob_r  <= alu1_rob;
         alu1_mis_r  <= alu1_iss_valid &&
                        alu1_is_branch &&
-                       (alu1_actual_fetch_pc != alu1_pred_pc);
+                       ((alu1_actual_fetch_pc != alu1_pred_pc) ||
+                        (alu1_taken_now && (alu1_ft_pc != (alu1_pc + 64'd4))));
         alu1_apc_r  <= alu1_actual_fetch_pc;
         alu1_pc_r   <= alu1_pc;
         alu1_br_r   <= alu1_iss_valid && alu1_is_branch;

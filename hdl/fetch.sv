@@ -65,13 +65,15 @@ module fetch (
 
             if (op0 == 5'h0a) begin
                 predict_next_pc = base_pc + {{52{l0[11]}}, l0};
-            end else if ((op0 == 5'h08 || op0 == 5'h09 || op0 == 5'h0b || op0 == 5'h0e) &&
+            end else if ((op0 == 5'h08 || op0 == 5'h09 || op0 == 5'h0b ||
+                          op0 == 5'h0c || op0 == 5'h0d || op0 == 5'h0e) &&
                          btb_valid[base_pc[5:2]] && btb_tag[base_pc[5:2]] == base_pc &&
                          btb_ctr[base_pc[5:2]][1]) begin
                 predict_next_pc = btb_tgt[base_pc[5:2]];
             end else if (op1 == 5'h0a) begin
                 predict_next_pc = pc1 + {{52{l1[11]}}, l1};
-            end else if ((op1 == 5'h08 || op1 == 5'h09 || op1 == 5'h0b || op1 == 5'h0e) &&
+            end else if ((op1 == 5'h08 || op1 == 5'h09 || op1 == 5'h0b ||
+                          op1 == 5'h0c || op1 == 5'h0d || op1 == 5'h0e) &&
                          btb_valid[pc1[5:2]] && btb_tag[pc1[5:2]] == pc1 &&
                          btb_ctr[pc1[5:2]][1]) begin
                 predict_next_pc = btb_tgt[pc1[5:2]];

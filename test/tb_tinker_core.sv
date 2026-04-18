@@ -104,10 +104,11 @@ module tb_tinker_core;
         clear_regs();
         write_instr(64'h2000, enc3(5'h08, 5'd1, 5'd0, 5'd0));
         write_instr(64'h2004, encL(5'h19, 5'd0, 12'd1));
-        write_instr(64'h2010, enc_halt());
+        write_instr(64'h2008, encL(5'h19, 5'd0, 12'd10));
+        write_instr(64'h200C, enc_halt());
         boot_core();
-        dut.reg_file.registers[0] = 64'd110;
-        dut.reg_file.registers[1] = 64'h2010;
+        dut.reg_file.registers[0] = 64'd100;
+        dut.reg_file.registers[1] = 64'h2008;
         wait_for_halt(timeout);
         if (timeout >= 500 || dut.reg_file.registers[0] !== 64'd110) begin
             $display("FAIL test2_branch_skip: timeout=%0d r0=%0d", timeout, dut.reg_file.registers[0]);

@@ -220,8 +220,14 @@ module rat (
         end else if (flush) begin
             recovered_free_list = 64'hFFFF_FFFF_0000_0000;
             for (i = 0; i < 32; i = i + 1) begin
-                rat_map[i] <= flush_rat_snap[i*6 +: 6];
-                recovered_free_list[flush_rat_snap[i*6 +: 6]] = 1'b0;
+                rat_map[i] <= i[5:0];
+                phys_regs[i] <= arch_regs_in[i];
+                phys_rdy[i] <= 1'b1;
+                arch_backed[i] <= 1'b1;
+            end
+            for (i = 32; i < NPHYS; i = i + 1) begin
+                phys_regs[i] <= 64'd0;
+                phys_rdy[i] <= 1'b0;
             end
             free_list <= recovered_free_list;
         end else begin
