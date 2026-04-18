@@ -172,6 +172,7 @@ wire [4:0]  alu0_op;
 wire [5:0]  alu0_dest;
 wire [3:0]  alu0_rob;
 wire [63:0] alu0_src1, alu0_src2, alu0_L64, alu0_pc, alu0_rdv;
+wire [63:0] alu0_ft_pc;
 wire [63:0] alu0_pred_pc;
 
 wire        alu1_iss_valid;
@@ -179,6 +180,7 @@ wire [4:0]  alu1_op;
 wire [5:0]  alu1_dest;
 wire [3:0]  alu1_rob;
 wire [63:0] alu1_src1, alu1_src2, alu1_L64, alu1_pc, alu1_rdv;
+wire [63:0] alu1_ft_pc;
 wire [63:0] alu1_pred_pc;
 
 // RS issue_L is 12-bit; extend for RS port (stored as rd_val)
@@ -520,6 +522,7 @@ rs #(.DEPTH(8)) alu_rs (
     .disp0_s_preg(r0_s_preg), .disp0_s_val(r0_s_val), .disp0_s_rdy(r0_s_rdy), .disp0_s_block_cdb(1'b0),
     .disp0_t_preg(r0_t_preg), .disp0_t_val(r0_t_val), .disp0_t_rdy(r0_t_rdy), .disp0_t_block_cdb(1'b0),
     .disp0_L(dec0_L), .disp0_pc(f_pc0),
+    .disp0_ft_pc(dispatch1_en ? (f_pc0 + 64'd8) : (f_pc0 + 64'd4)),
     .disp0_pred_pc(f_pred_pc),
     .disp0_rd_preg(r0_old_preg), .disp0_rd_val(r0_old_val),
     .disp0_rd_rdy(is_brgt0 ? r0_old_rdy : 1'b1), .disp0_rd_block_cdb(1'b0),
@@ -528,6 +531,7 @@ rs #(.DEPTH(8)) alu_rs (
     .disp1_s_preg(r1_s_preg), .disp1_s_val(r1_s_val), .disp1_s_rdy(r1_s_rdy), .disp1_s_block_cdb(r1_s_dep),
     .disp1_t_preg(r1_t_preg), .disp1_t_val(r1_t_val), .disp1_t_rdy(r1_t_rdy), .disp1_t_block_cdb(r1_t_dep),
     .disp1_L(dec1_L), .disp1_pc(f_pc1),
+    .disp1_ft_pc(f_pc1 + 64'd4),
     .disp1_pred_pc(f_pred_pc),
     .disp1_rd_preg(r1_old_preg), .disp1_rd_val(r1_old_val),
     .disp1_rd_rdy(is_brgt1 ? r1_old_rdy : 1'b1), .disp1_rd_block_cdb(r1_old_dep),
@@ -536,11 +540,11 @@ rs #(.DEPTH(8)) alu_rs (
     .issue_valid(alu0_iss_valid), .issue_op(alu0_op),
     .issue_dest_preg(alu0_dest), .issue_rob_idx(alu0_rob),
     .issue_src1(alu0_src1), .issue_src2(alu0_src2),
-    .issue_L(alu0_iss_L), .issue_pc(alu0_pc), .issue_pred_pc(alu0_pred_pc), .issue_rd_val(alu0_rdv),
+    .issue_L(alu0_iss_L), .issue_pc(alu0_pc), .issue_ft_pc(alu0_ft_pc), .issue_pred_pc(alu0_pred_pc), .issue_rd_val(alu0_rdv),
     .issue2_valid(alu1_iss_valid), .issue2_op(alu1_op),
     .issue2_dest_preg(alu1_dest), .issue2_rob_idx(alu1_rob),
     .issue2_src1(alu1_src1), .issue2_src2(alu1_src2),
-    .issue2_L(alu1_iss_L), .issue2_pc(alu1_pc), .issue2_pred_pc(alu1_pred_pc), .issue2_rd_val(alu1_rdv),
+    .issue2_L(alu1_iss_L), .issue2_pc(alu1_pc), .issue2_ft_pc(alu1_ft_pc), .issue2_pred_pc(alu1_pred_pc), .issue2_rd_val(alu1_rdv),
     .full(alu_rs_full), .one_avail(alu_rs_one_avail), .two_avail(alu_rs_two_avail)
 );
 
@@ -556,6 +560,7 @@ rs #(.DEPTH(8), .ISSUE_TWO(0)) fpu_rs (
     .disp0_s_preg(r0_s_preg), .disp0_s_val(r0_s_val), .disp0_s_rdy(r0_s_rdy), .disp0_s_block_cdb(1'b0),
     .disp0_t_preg(r0_t_preg), .disp0_t_val(r0_t_val), .disp0_t_rdy(r0_t_rdy), .disp0_t_block_cdb(1'b0),
     .disp0_L(dec0_L), .disp0_pc(f_pc0),
+    .disp0_ft_pc(f_pc0 + 64'd4),
     .disp0_pred_pc(64'b0),
     .disp0_rd_preg(6'b0), .disp0_rd_val(64'b0), .disp0_rd_rdy(1'b1), .disp0_rd_block_cdb(1'b0),
     .disp1_en(dispatch1_en && dec1_uses_fpu_rs),
@@ -563,6 +568,7 @@ rs #(.DEPTH(8), .ISSUE_TWO(0)) fpu_rs (
     .disp1_s_preg(r1_s_preg), .disp1_s_val(r1_s_val), .disp1_s_rdy(r1_s_rdy), .disp1_s_block_cdb(r1_s_dep),
     .disp1_t_preg(r1_t_preg), .disp1_t_val(r1_t_val), .disp1_t_rdy(r1_t_rdy), .disp1_t_block_cdb(r1_t_dep),
     .disp1_L(dec1_L), .disp1_pc(f_pc1),
+    .disp1_ft_pc(f_pc1 + 64'd4),
     .disp1_pred_pc(64'b0),
     .disp1_rd_preg(6'b0), .disp1_rd_val(64'b0), .disp1_rd_rdy(1'b1), .disp1_rd_block_cdb(1'b0),
     .cdb0_valid(cdb0_v), .cdb0_preg(cdb0_preg), .cdb0_data(cdb0_data),
@@ -570,9 +576,9 @@ rs #(.DEPTH(8), .ISSUE_TWO(0)) fpu_rs (
     .issue_valid(fpu0_iss_valid), .issue_op(fpu0_op),
     .issue_dest_preg(fpu0_dest), .issue_rob_idx(fpu0_rob),
     .issue_src1(fpu0_src1), .issue_src2(fpu0_src2),
-    .issue_L(fpu_dummy_L), .issue_pc(fpu_dummy_pc), .issue_pred_pc(), .issue_rd_val(fpu_dummy_rdv),
+    .issue_L(fpu_dummy_L), .issue_pc(fpu_dummy_pc), .issue_ft_pc(), .issue_pred_pc(), .issue_rd_val(fpu_dummy_rdv),
     .issue2_valid(), .issue2_op(), .issue2_dest_preg(), .issue2_rob_idx(),
-    .issue2_src1(), .issue2_src2(), .issue2_L(), .issue2_pc(), .issue2_pred_pc(), .issue2_rd_val(),
+    .issue2_src1(), .issue2_src2(), .issue2_L(), .issue2_pc(), .issue2_ft_pc(), .issue2_pred_pc(), .issue2_rd_val(),
     .full(fpu_rs_full), .one_avail(fpu_rs_one_avail), .two_avail(fpu_rs_two_avail)
 );
 // Second FPU RS is disabled (single FP RS for simplicity)
@@ -603,35 +609,47 @@ alu_ls alu1_inst (
 
 // Register ALU0 output (1-cycle pipeline)
 always @(posedge clk) begin
+    reg alu0_is_branch;
+    reg alu1_is_branch;
+    reg alu0_taken_now;
+    reg alu1_taken_now;
+    reg [63:0] alu0_actual_fetch_pc;
+    reg [63:0] alu1_actual_fetch_pc;
     if (reset || flush_sig) begin
         alu0_v_r <= 0; alu1_v_r <= 0;
     end else begin
+        alu0_is_branch = (alu0_op >= 5'h08 && alu0_op <= 5'h0e);
+        alu1_is_branch = (alu1_op >= 5'h08 && alu1_op <= 5'h0e);
+        alu0_taken_now = alu0_is_branch && (alu0_next_pc != alu0_pc + 64'd4);
+        alu1_taken_now = alu1_is_branch && (alu1_next_pc != alu1_pc + 64'd4);
+        alu0_actual_fetch_pc = alu0_taken_now ? alu0_next_pc : alu0_ft_pc;
+        alu1_actual_fetch_pc = alu1_taken_now ? alu1_next_pc : alu1_ft_pc;
+
         alu0_v_r    <= alu0_iss_valid;
         // For register-writing ops: result is alu0_result
         // For branches: result = next_pc (used by ROB for mis-pred detection)
         alu0_res_r  <= alu0_reg_wr ? alu0_result : alu0_next_pc;
         alu0_dest_r <= alu0_dest;
         alu0_rob_r  <= alu0_rob;
-        // Misprediction: branch op and actual PC differs from instruction's PC+4
         alu0_mis_r  <= alu0_iss_valid &&
-                       (alu0_op >= 5'h08 && alu0_op <= 5'h0e) &&
-                       (alu0_next_pc != alu0_pred_pc);
-        alu0_apc_r  <= alu0_next_pc;
+                       alu0_is_branch &&
+                       (alu0_actual_fetch_pc != alu0_pred_pc);
+        alu0_apc_r  <= alu0_actual_fetch_pc;
         alu0_pc_r   <= alu0_pc;
-        alu0_br_r   <= alu0_iss_valid && (alu0_op >= 5'h08 && alu0_op <= 5'h0e);
-        alu0_taken_r<= (alu0_next_pc != alu0_pc + 4);
+        alu0_br_r   <= alu0_iss_valid && alu0_is_branch;
+        alu0_taken_r<= alu0_taken_now;
 
         alu1_v_r    <= alu1_iss_valid;
         alu1_res_r  <= alu1_reg_wr ? alu1_result : alu1_next_pc;
         alu1_dest_r <= alu1_dest;
         alu1_rob_r  <= alu1_rob;
         alu1_mis_r  <= alu1_iss_valid &&
-                       (alu1_op >= 5'h08 && alu1_op <= 5'h0e) &&
-                       (alu1_next_pc != alu1_pred_pc);
-        alu1_apc_r  <= alu1_next_pc;
+                       alu1_is_branch &&
+                       (alu1_actual_fetch_pc != alu1_pred_pc);
+        alu1_apc_r  <= alu1_actual_fetch_pc;
         alu1_pc_r   <= alu1_pc;
-        alu1_br_r   <= alu1_iss_valid && (alu1_op >= 5'h08 && alu1_op <= 5'h0e);
-        alu1_taken_r<= (alu1_next_pc != alu1_pc + 4);
+        alu1_br_r   <= alu1_iss_valid && alu1_is_branch;
+        alu1_taken_r<= alu1_taken_now;
     end
 end
 

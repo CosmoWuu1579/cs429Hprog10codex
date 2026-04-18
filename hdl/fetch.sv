@@ -31,6 +31,21 @@ module fetch (
 
     integer i;
 
+    function slot0_predicted_taken;
+        input [63:0] base_pc;
+        input [31:0] instr0;
+        reg [4:0] op0;
+        begin
+            op0 = instr0[31:27];
+            slot0_predicted_taken =
+                (op0 == 5'h0a) ||
+                (((op0 == 5'h08) || (op0 == 5'h09) || (op0 == 5'h0b) ||
+                  (op0 == 5'h0c) || (op0 == 5'h0d) || (op0 == 5'h0e)) &&
+                 btb_valid[base_pc[5:2]] && btb_tag[base_pc[5:2]] == base_pc &&
+                 btb_ctr[base_pc[5:2]][1]);
+        end
+    endfunction
+
     function [63:0] predict_next_pc;
         input [63:0] base_pc;
         input [31:0] instr0;
@@ -123,7 +138,7 @@ module fetch (
                 end
             end else begin
                 out_valid0 <= 1'b1;
-                out_valid1 <= 1'b1;
+                out_valid1 <= !slot0_predicted_taken(pc, mem_instr0);
                 out_instr0 <= mem_instr0;
                 out_instr1 <= mem_instr1;
                 out_pc0 <= pc;

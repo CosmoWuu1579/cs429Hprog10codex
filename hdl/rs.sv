@@ -23,6 +23,7 @@ module rs #(
     input  wire        disp0_t_block_cdb,
     input  wire [11:0] disp0_L,
     input  wire [63:0] disp0_pc,
+    input  wire [63:0] disp0_ft_pc,
     input  wire [63:0] disp0_pred_pc,
     // 3rd source (rd) for brgt; use rd_rdy=1 for all other instructions
     input  wire [5:0]  disp0_rd_preg,
@@ -45,6 +46,7 @@ module rs #(
     input  wire        disp1_t_block_cdb,
     input  wire [11:0] disp1_L,
     input  wire [63:0] disp1_pc,
+    input  wire [63:0] disp1_ft_pc,
     input  wire [63:0] disp1_pred_pc,
     input  wire [5:0]  disp1_rd_preg,
     input  wire [63:0] disp1_rd_val,
@@ -67,6 +69,7 @@ module rs #(
     output reg  [63:0] issue_src2,
     output reg  [11:0] issue_L,
     output reg  [63:0] issue_pc,
+    output reg  [63:0] issue_ft_pc,
     output reg  [63:0] issue_pred_pc,
     output reg  [63:0] issue_rd_val,
     output reg         issue2_valid,
@@ -77,6 +80,7 @@ module rs #(
     output reg  [63:0] issue2_src2,
     output reg  [11:0] issue2_L,
     output reg  [63:0] issue2_pc,
+    output reg  [63:0] issue2_ft_pc,
     output reg  [63:0] issue2_pred_pc,
     output reg  [63:0] issue2_rd_val,
     output wire        full,
@@ -95,6 +99,7 @@ module rs #(
     reg        t_rdy   [0:DEPTH-1];
     reg [11:0] L_f     [0:DEPTH-1];
     reg [63:0] pc_f    [0:DEPTH-1];
+    reg [63:0] ft_pc_f [0:DEPTH-1];
     reg [63:0] pred_pc_f [0:DEPTH-1];
     reg [5:0]  rd_preg [0:DEPTH-1];  // 3rd source preg (brgt rd target)
     reg [63:0] rd_val  [0:DEPTH-1];  // 3rd source value
@@ -201,6 +206,7 @@ module rs #(
             issue_src2 <= 0;
             issue_L <= 0;
             issue_pc <= 0;
+            issue_ft_pc <= 0;
             issue_pred_pc <= 0;
             issue_rd_val <= 0;
             issue2_valid <= 0;
@@ -211,6 +217,7 @@ module rs #(
             issue2_src2 <= 0;
             issue2_L <= 0;
             issue2_pc <= 0;
+            issue2_ft_pc <= 0;
             issue2_pred_pc <= 0;
             issue2_rd_val <= 0;
         end else begin
@@ -250,6 +257,7 @@ module rs #(
                 issue_src2 <= operand_value_now(t_rdy[sel], t_preg[sel], t_val[sel]);
                 issue_L <= L_f[sel];
                 issue_pc <= pc_f[sel];
+                issue_ft_pc <= ft_pc_f[sel];
                 issue_pred_pc <= pred_pc_f[sel];
                 issue_rd_val <= operand_value_now(rd_rdy[sel], rd_preg[sel], rd_val[sel]);
                 v[sel] <= 0;
@@ -263,6 +271,7 @@ module rs #(
                 issue2_src2 <= operand_value_now(t_rdy[sel2], t_preg[sel2], t_val[sel2]);
                 issue2_L <= L_f[sel2];
                 issue2_pc <= pc_f[sel2];
+                issue2_ft_pc <= ft_pc_f[sel2];
                 issue2_pred_pc <= pred_pc_f[sel2];
                 issue2_rd_val <= operand_value_now(rd_rdy[sel2], rd_preg[sel2], rd_val[sel2]);
                 v[sel2] <= 0;
@@ -276,6 +285,7 @@ module rs #(
                 t_preg[free0] <= disp0_t_preg;
                 L_f[free0] <= disp0_L;
                 pc_f[free0] <= disp0_pc;
+                ft_pc_f[free0] <= disp0_ft_pc;
                 pred_pc_f[free0] <= disp0_pred_pc;
                 rd_preg[free0] <= disp0_rd_preg;
                 if (!disp0_s_rdy && !disp0_s_block_cdb && cdb0_valid && disp0_s_preg == cdb0_preg) begin
@@ -309,6 +319,7 @@ module rs #(
                 t_preg[free1] <= disp1_t_preg;
                 L_f[free1] <= disp1_L;
                 pc_f[free1] <= disp1_pc;
+                ft_pc_f[free1] <= disp1_ft_pc;
                 pred_pc_f[free1] <= disp1_pred_pc;
                 rd_preg[free1] <= disp1_rd_preg;
                 if (!disp1_s_rdy && !disp1_s_block_cdb && cdb0_valid && disp1_s_preg == cdb0_preg) begin
