@@ -1,0 +1,79 @@
+Bug Analysis
+Bug #1 — Non-writing instructions free a live physical register on commit (PRIMARY cause of error_2)
+Where: tinker.sv:735,742 in combination with rat.sv:246-249
+
+What the code does: At dispatch, alloc0_old_preg(r0_old_preg) / alloc1_old_preg(r1_old_preg) is passed unconditionally, where r_old_preg = rat_map[dec_d]. For branches like brnz r20, r21, dec0_d = 20, so r_old_preg = rat_map[20] — the preg currently holding r20's value. Because the branch doesn't write a register (ren_en = 0), the RAT never actually remaps r20, yet the ROB still records this "old" preg. When the brnz commits, rat.sv:246-249 unconditionally puts that preg back on the free list:
+
+
+if (commit1_en && commit1_old >= 6'd32)
+    free_list[commit1_old] <= 1'b1;
+Why it's a bug: rat_map[20] still points to that now-"free" preg. The next rename (the subi on the next loop iteration) will pick the smallest free preg and may grab it, producing aliasing: rat_map[21] == rat_map[20]. Subi then writes its result into that preg, destroying r20's value (which is the branch target :b1 = 8496). From then on, brnz r20, r21 branches to whatever subi last wrote — a small number near 0. PC jumps into garbage, the loop stops behaving as coded, and the run eventually times out with a corrupt r21 (the 8507 seen in error_2). The expected state (r21=0, all other branch-target registers intact) cannot be reached.
+
+Error log that triggers it: error_2 — branch_loop hits the 200 000-cycle timeout and student_state[r21] = 8507 instead of 0 (also every r22–r26 is correct, confirming r20 specifically is the target of the corruption chain through brnz).
+
+Proposed fix: gate old_preg by reg_write at dispatch so non-writing instructions carry no "old preg" into the ROB:
+
+
+// tinker.sv:735
+.alloc0_dest_preg(r0_new_preg),
+.alloc0_old_preg(dec0_reg_wr ? r0_old_preg : 6'd0),
+// tinker.sv:742
+.alloc1_dest_preg(r1_new_preg),
+.alloc1_old_preg(dec1_reg_wr ? r1_old_preg : 6'd0),
+commit_old = 0 is < 32, so rat.sv:246,248 skips the free. Equivalently: add commit0_reg_write / commit1_reg_write inputs to rat and AND them into those two if conditions.
+
+Bug #2 — Non-writing instructions broadcast on the CDB with an unallocated preg (SECONDARY cause of error_2)
+Where: tinker.sv:258-261 and the equivalent cdb1_* assigns at tinker.sv:265-271, together with rat.sv:234-245 and rs.sv:228-248.
+
+What the code does: cdb0_v = alu0_v_r, cdb0_preg = alu0_dest_r, cdb0_data = alu0_res_r. For a branch, alu0_res_r = alu0_next_pc, alu0_dest_r = r0_new_preg (the free-list index that was reported but not actually allocated, because ren0_en was 0). So the CDB broadcasts (free_idx, next_pc). In RAT, this does phys_regs[free_idx] <= next_pc; phys_rdy[free_idx] <= 1;. In RS, any waiting entry whose s_preg or t_preg equals free_idx latches next_pc as its operand.
+
+Why it's a bug: free_idx is still free (because the branch didn't rename). A later dispatch legitimately allocates that same preg to a real destination. Then the in-flight branch's late CDB broadcast either: (a) pollutes phys_regs[free_idx] with a PC value so that subsequent source reads of that preg return the wrong data, or (b) marks the preg ready prematurely so a dependent instruction captures the bogus next_pc as its operand. In the branch_loop, this means the brnz's target value (8496) or next-PC value can appear in arbitrary operand slots and commits, which, combined with Bug #1, is how r21 ends up holding an address-shaped value like 8507.
+
+Error log that triggers it: error_2 — same branch-loop corruption. This bug alone would cause the condition operand of a subsequent brnz to occasionally read an address (non-zero) instead of 0, preventing loop exit.
+
+Proposed fix: add a reg_write bit to the CDB and gate RAT and RS updates on it while keeping ROB wake-up unaffected (ROB indexes by rob_idx, so it still needs the cdbX_v pulse for branches). Sketch:
+
+
+// tinker.sv — new registered signals paralleling alu0_v_r
+reg alu0_rw_r, alu1_rw_r;
+always @(posedge clk) begin
+    if (reset || flush_sig) begin alu0_rw_r <= 0; alu1_rw_r <= 0; end
+    else begin
+        alu0_rw_r <= alu0_iss_valid && alu0_reg_wr;
+        alu1_rw_r <= alu1_iss_valid && alu1_reg_wr;
+    end
+end
+
+wire cdb0_rw = alu0_rw_r;
+wire cdb1_rw = alu1_v_r ? alu1_rw_r
+             : fpu0_out_v ? 1'b1
+             : fpu1_out_v ? 1'b1
+             : lsq_ld_cdb_v;   // loads always write
+Then add cdb0_rw / cdb1_rw ports to rat and rs, and gate the snoop/update writes with them:
+
+
+// rat.sv — around line 234
+if (cdb0_valid && cdb0_rw) begin
+    phys_regs[cdb0_preg] <= cdb0_data;
+    phys_rdy [cdb0_preg] <= 1'b1;
+    if (cdb0_preg < 32) arch_backed[cdb0_preg[4:0]] <= 1'b0;
+end
+// same for cdb1
+
+// rs.sv — gate every `cdbX_valid && ... == cdbX_preg` forwarding check
+//  on (cdbX_valid && cdbX_rw).
+The ROB side (rob.sv:147-158) stays unchanged so branches still mark their own ROB entry ready.
+
+Error_1 — OOO-window performance deficit (7.92 / 10)
+error_1 reports Correct=True at 40 cycles vs. the 30-cycle full-credit reference — this is purely a throughput loss, not a correctness failure, so there isn't a single "bug line" to point at the way there is for error_2. Two structural limiters in this design plausibly account for the gap:
+
+rs.sv:179-180 blocks a second issue whenever sel is a control op ((!sel_found || !is_control_op(op[sel]))). For branch-heavy code this halves issue bandwidth. OOO-window is not branch-heavy, so this likely isn't the primary contributor here — but it caps dual-issue in general.
+ALU latency is "dispatch → RS → ALU → output latch → CDB" = 3 cycles for back-to-back dependent ops (see tinker.sv:611-656). With a 30-instruction OOO workload and any serial dependency chain, 10 extra cycles of pipeline fill is plausible. Shortening this would require removing the alu*_*_r output latch and letting the combinational ALU result drive CDB directly — a real design change, not a one-line fix.
+Because the OOO-window log doesn't identify a specific incorrect value or stall site, I can't pin error_1 to a specific line without running the benchmark's trace. I'd recommend fixing Bugs #1 and #2 first (they gate correctness on error_2, which is the more valuable 20 points), then re-profiling ooo_window.
+
+Summary
+#	File:Line	Bug	Triggered by
+1	tinker.sv:735,742 + rat.sv:246-249	Non-writing instructions' old_preg is freed at commit even though RAT never remapped the arch reg → aliasing and data destruction	error_2 (r21=8507, timeout)
+2	tinker.sv:258-261,265-271 + rat.sv:234-245, rs.sv:228-248	Branches broadcast on CDB with an unallocated dest_preg → spurious writes to phys_regs / RS operand latches	error_2 (timeout, corrupt state)
+—	Structural	ALU 3-cycle dispatch→CDB latency + RS 1-issue cap when sel is a control op	error_1 (40 vs 30 cycles; correctness unaffected)
+Fixing Bug #1 alone may be enough to stop the branch_loop timeout, but both fixes are needed for a correct OOO implementation — any branch that dispatches will otherwise be able to corrupt renaming state.

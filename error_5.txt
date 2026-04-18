@@ -1,0 +1,28 @@
+[generated/benchmarks]         FP performance scoring complete
+Comparison mode: cycles only
+Zero-credit reference: opt_branch_pred_lsq
+Full-credit reference: opt_branch_pred_lsq_fppipe
+Latency normalization: ALU student=3.0 ref=3.0, FPU student=4.0 ref=3.0
+FP performance raw points: 9.88 / 10 (unrounded 9.877)
+Benchmark score curve exponent: 1.00
+FP performance scale: 1.0000 (correctness gate: 1.0000^1.00)
+FP performance final points: 9.88 / 10 (unrounded after scale 9.877)
+Test                  Correct   Cycles    Score     Message                           
+--------------------------------------------------------------------------------------
+fp_pipe               True      36        0.99      Adjusted cycles 35 (raw 36, offset 1)
+
+[generated/benchmarks | fp_pipe]:
+<performance>: {'status': 'ok', 'comparison_mode': 'cycles', 'student_cycles': 36, 'adjusted_student_cycles': 35, 'cycle_adjustment': 1, 'raw_zero_credit_cycles': 115, 'raw_full_credit_cycles': 34, 'zero_credit_cycle_adjustment': 0, 'full_credit_cycle_adjustment': 0, 'zero_credit_cycles': 115, 'full_credit_cycles': 34, 'unadjusted_linear_score_ratio': 0.9753086419753086, 'unadjusted_score_ratio': 0.9753086419753086, 'linear_score_ratio': 0.9876543209876543, 'grace_points': 0.0}
+<cycles>: 36
+<adjusted_cycles>: 35
+<cycle_adjustment>: 1
+<grace_points>: 0.0
+<message>: Adjusted cycles 35 (raw 36, offset 1)
+<stdout>:
+Header:          40
+Code:         116
+Data:           0
+Loaded additional state from                                                                                                                                                                                                               ./tests/generated/benchmarks/fp_pipe/fp_pipe.state
+CYCLES:          36
+<stderr>:
+

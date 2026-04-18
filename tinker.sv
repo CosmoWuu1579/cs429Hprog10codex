@@ -199,6 +199,7 @@ wire [63:0] alu0_next_pc, alu1_next_pc;
 
 // Registered ALU outputs (1 cycle output latch)
 reg        alu0_v_r, alu1_v_r;
+reg        alu0_rw_r, alu1_rw_r;
 reg [63:0] alu0_res_r, alu1_res_r;
 reg [5:0]  alu0_dest_r, alu1_dest_r;
 reg [3:0]  alu0_rob_r,  alu1_rob_r;
@@ -249,6 +250,7 @@ wire [63:0] core_mem_wr_addr, core_mem_wr_data;
 // Priority: ALU0 > ALU1 > FPU0 > FPU1 > LSQ
 // ---------------------------------------------------------------------------
 wire        cdb0_v, cdb1_v;
+wire        cdb0_rw, cdb1_rw;
 wire [5:0]  cdb0_preg, cdb1_preg;
 wire [63:0] cdb0_data, cdb1_data;
 wire [3:0]  cdb0_rob,  cdb1_rob;
@@ -256,6 +258,7 @@ wire        cdb0_mis,  cdb1_mis;
 wire [63:0] cdb0_apc,  cdb1_apc;
 
 assign cdb0_v    = alu0_v_r;
+assign cdb0_rw   = alu0_rw_r;
 assign cdb0_preg = alu0_dest_r;
 assign cdb0_data = alu0_res_r;
 assign cdb0_rob  = alu0_rob_r;
@@ -263,6 +266,8 @@ assign cdb0_mis  = alu0_mis_r;
 assign cdb0_apc  = alu0_apc_r;
 
 assign cdb1_v    = alu1_v_r    ? 1 : fpu0_out_v ? 1 : fpu1_out_v ? 1 : lsq_ld_cdb_v;
+assign cdb1_rw   = alu1_v_r    ? alu1_rw_r : fpu0_out_v ? 1'b1 :
+                   fpu1_out_v  ? 1'b1      : lsq_ld_cdb_v;
 assign cdb1_preg = alu1_v_r    ? alu1_dest_r : fpu0_out_v ? fpu0_odest :
                    fpu1_out_v  ? fpu1_odest  : lsq_ld_cdb_preg;
 assign cdb1_data = alu1_v_r    ? alu1_res_r  : fpu0_out_v ? fpu0_res :
@@ -501,8 +506,8 @@ rat rat_inst (
     .rename1_old_val(r1_old_val), .rename1_old_rdy(r1_old_rdy),
     .rename1_s_dep_out(r1_s_dep), .rename1_t_dep_out(r1_t_dep), .rename1_old_dep_out(r1_old_dep),
     .free_avail(free_avail), .free_one_avail(free_one_avail),
-    .cdb0_valid(cdb0_v), .cdb0_preg(cdb0_preg), .cdb0_data(cdb0_data),
-    .cdb1_valid(cdb1_v), .cdb1_preg(cdb1_preg), .cdb1_data(cdb1_data),
+    .cdb0_valid(cdb0_v), .cdb0_rw(cdb0_rw), .cdb0_preg(cdb0_preg), .cdb0_data(cdb0_data),
+    .cdb1_valid(cdb1_v), .cdb1_rw(cdb1_rw), .cdb1_preg(cdb1_preg), .cdb1_data(cdb1_data),
     .commit0_en(commit0_en), .commit0_areg(commit0_areg),
     .commit0_preg(commit0_preg), .commit0_old(commit0_old),
     .commit1_en(commit1_en), .commit1_areg(commit1_areg),
@@ -535,8 +540,8 @@ rs #(.DEPTH(8)) alu_rs (
     .disp1_pred_pc(f_pred_pc),
     .disp1_rd_preg(r1_old_preg), .disp1_rd_val(r1_old_val),
     .disp1_rd_rdy(is_brgt1 ? r1_old_rdy : 1'b1), .disp1_rd_block_cdb(r1_old_dep),
-    .cdb0_valid(cdb0_v), .cdb0_preg(cdb0_preg), .cdb0_data(cdb0_data),
-    .cdb1_valid(cdb1_v), .cdb1_preg(cdb1_preg), .cdb1_data(cdb1_data),
+    .cdb0_valid(cdb0_v), .cdb0_rw(cdb0_rw), .cdb0_preg(cdb0_preg), .cdb0_data(cdb0_data),
+    .cdb1_valid(cdb1_v), .cdb1_rw(cdb1_rw), .cdb1_preg(cdb1_preg), .cdb1_data(cdb1_data),
     .issue_valid(alu0_iss_valid), .issue_op(alu0_op),
     .issue_dest_preg(alu0_dest), .issue_rob_idx(alu0_rob),
     .issue_src1(alu0_src1), .issue_src2(alu0_src2),
@@ -571,8 +576,8 @@ rs #(.DEPTH(8), .ISSUE_TWO(0)) fpu_rs (
     .disp1_ft_pc(f_pc1 + 64'd4),
     .disp1_pred_pc(64'b0),
     .disp1_rd_preg(6'b0), .disp1_rd_val(64'b0), .disp1_rd_rdy(1'b1), .disp1_rd_block_cdb(1'b0),
-    .cdb0_valid(cdb0_v), .cdb0_preg(cdb0_preg), .cdb0_data(cdb0_data),
-    .cdb1_valid(cdb1_v), .cdb1_preg(cdb1_preg), .cdb1_data(cdb1_data),
+    .cdb0_valid(cdb0_v), .cdb0_rw(cdb0_rw), .cdb0_preg(cdb0_preg), .cdb0_data(cdb0_data),
+    .cdb1_valid(cdb1_v), .cdb1_rw(cdb1_rw), .cdb1_preg(cdb1_preg), .cdb1_data(cdb1_data),
     .issue_valid(fpu0_iss_valid), .issue_op(fpu0_op),
     .issue_dest_preg(fpu0_dest), .issue_rob_idx(fpu0_rob),
     .issue_src1(fpu0_src1), .issue_src2(fpu0_src2),
@@ -617,6 +622,7 @@ always @(posedge clk) begin
     reg [63:0] alu1_actual_fetch_pc;
     if (reset || flush_sig) begin
         alu0_v_r <= 0; alu1_v_r <= 0;
+        alu0_rw_r <= 0; alu1_rw_r <= 0;
     end else begin
         alu0_is_branch = (alu0_op >= 5'h08 && alu0_op <= 5'h0e);
         alu1_is_branch = (alu1_op >= 5'h08 && alu1_op <= 5'h0e);
@@ -626,6 +632,7 @@ always @(posedge clk) begin
         alu1_actual_fetch_pc = alu1_taken_now ? alu1_next_pc : alu1_ft_pc;
 
         alu0_v_r    <= alu0_iss_valid;
+        alu0_rw_r   <= alu0_iss_valid && alu0_reg_wr;
         // For register-writing ops: result is alu0_result
         // For branches: result = next_pc (used by ROB for mis-pred detection)
         alu0_res_r  <= alu0_reg_wr ? alu0_result : alu0_next_pc;
@@ -641,6 +648,7 @@ always @(posedge clk) begin
         alu0_taken_r<= alu0_taken_now;
 
         alu1_v_r    <= alu1_iss_valid;
+        alu1_rw_r   <= alu1_iss_valid && alu1_reg_wr;
         alu1_res_r  <= alu1_reg_wr ? alu1_result : alu1_next_pc;
         alu1_dest_r <= alu1_dest;
         alu1_rob_r  <= alu1_rob;
@@ -732,14 +740,14 @@ rob rob_inst (
     .clk(clk), .reset(reset),
     .alloc0_en(dispatch0_en),
     .alloc0_fu_type(dec0_fu), .alloc0_dest_areg(dec0_d),
-    .alloc0_dest_preg(r0_new_preg), .alloc0_old_preg(r0_old_preg),
+    .alloc0_dest_preg(r0_new_preg), .alloc0_old_preg(dec0_reg_wr ? r0_old_preg : 6'd0),
     .alloc0_reg_write(dec0_reg_wr), .alloc0_is_store(dec0_is_store),
     .alloc0_is_branch(dec0_is_branch), .alloc0_is_halt(dec0_is_halt),
     .alloc0_pred_pc(f_pred_pc), .alloc0_rat_snap(rat_snap),
     .alloc0_idx(rob0_idx),
     .alloc1_en(dispatch1_en),
     .alloc1_fu_type(dec1_fu), .alloc1_dest_areg(dec1_d),
-    .alloc1_dest_preg(r1_new_preg), .alloc1_old_preg(r1_old_preg),
+    .alloc1_dest_preg(r1_new_preg), .alloc1_old_preg(dec1_reg_wr ? r1_old_preg : 6'd0),
     .alloc1_reg_write(dec1_reg_wr), .alloc1_is_store(dec1_is_store),
     .alloc1_is_branch(dec1_is_branch), .alloc1_is_halt(dec1_is_halt),
     .alloc1_pred_pc(f_pred_pc), .alloc1_rat_snap(rat_snap),

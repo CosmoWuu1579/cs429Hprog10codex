@@ -1,0 +1,24 @@
+.code
+; this is a comment
+; ld is a macro that loads a 64 bit value into a register
+    ld r20, :b1 
+    ld r22, :b2
+    ld r23, :b3
+    ld r24, :b4
+    ld r25, :b5
+    ld r26, :loop
+    mov r21, 2047
+:loop
+    subi r21, 1
+    brnz r20, r21
+    halt
+:b1
+    br r22
+:b2
+    br r23
+:b3
+    br r24
+:b4
+    br r25
+:b5
+    br r26

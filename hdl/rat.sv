@@ -80,9 +80,11 @@ module rat (
 
     // CDB write (update physical reg file, mark ready)
     input  wire        cdb0_valid,
+    input  wire        cdb0_rw,
     input  wire [5:0]  cdb0_preg,
     input  wire [63:0] cdb0_data,
     input  wire        cdb1_valid,
+    input  wire        cdb1_rw,
     input  wire [5:0]  cdb1_preg,
     input  wire [63:0] cdb1_data,
 
@@ -231,13 +233,13 @@ module rat (
             end
             free_list <= recovered_free_list;
         end else begin
-            if (cdb0_valid) begin
+            if (cdb0_valid && cdb0_rw) begin
                 phys_regs[cdb0_preg] <= cdb0_data;
                 phys_rdy[cdb0_preg] <= 1'b1;
                 if (cdb0_preg < 32)
                     arch_backed[cdb0_preg[4:0]] <= 1'b0;
             end
-            if (cdb1_valid) begin
+            if (cdb1_valid && cdb1_rw) begin
                 phys_regs[cdb1_preg] <= cdb1_data;
                 phys_rdy[cdb1_preg] <= 1'b1;
                 if (cdb1_preg < 32)
