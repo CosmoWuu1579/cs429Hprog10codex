@@ -70,6 +70,9 @@ module rat (
     output wire        rename1_t_rdy,
     output wire [63:0] rename1_old_val,
     output wire        rename1_old_rdy,
+    output wire        rename1_s_dep_out,
+    output wire        rename1_t_dep_out,
+    output wire        rename1_old_dep_out,
 
     // Free list status (stall if < 2 free regs)
     output wire        free_avail,    // 1 if at least 2 physical regs are free
@@ -169,6 +172,9 @@ module rat (
     wire rename1_old_dep = rename0_en && (rename1_d == rename0_d);
     wire rename1_s_dep = rename0_en && (rename1_s == rename0_d);
     wire rename1_t_dep = rename0_en && (rename1_t == rename0_d);
+    assign rename1_s_dep_out = rename1_s_dep;
+    assign rename1_t_dep_out = rename1_t_dep;
+    assign rename1_old_dep_out = rename1_old_dep;
     assign rename1_old_preg = rename1_old_dep ? free0_idx : rat_map[rename1_d];
     assign rename1_s_preg = rename1_s_dep ? free0_idx : rat_map[rename1_s];
     assign rename1_t_preg = rename1_t_dep ? free0_idx : rat_map[rename1_t];
@@ -212,7 +218,7 @@ module rat (
             end
             free_list <= 64'hFFFF_FFFF_0000_0000;
         end else if (flush) begin
-            recovered_free_list = 64'hFFFF_FFFF_FFFF_FFFF;
+            recovered_free_list = 64'hFFFF_FFFF_0000_0000;
             for (i = 0; i < 32; i = i + 1) begin
                 rat_map[i] <= flush_rat_snap[i*6 +: 6];
                 recovered_free_list[flush_rat_snap[i*6 +: 6]] = 1'b0;
@@ -231,9 +237,9 @@ module rat (
                 if (cdb1_preg < 32)
                     arch_backed[cdb1_preg[4:0]] <= 1'b0;
             end
-            if (commit0_en)
+            if (commit0_en && commit0_old >= 6'd32)
                 free_list[commit0_old] <= 1'b1;
-            if (commit1_en)
+            if (commit1_en && commit1_old >= 6'd32)
                 free_list[commit1_old] <= 1'b1;
             if (rename0_en) begin
                 rat_map[rename0_d] <= free0_idx;

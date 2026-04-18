@@ -3,12 +3,17 @@ module lsq (
     input  reset,
     input  wire flush,
 
-    // Dispatch: load (op=0x10)
-    input  wire        ld_disp_en,
-    input  wire [5:0]  ld_dest_preg,
-    input  wire [3:0]  ld_rob_idx,
-    input  wire [63:0] ld_base,       // rs value
-    input  wire [11:0] ld_L,          // offset
+    // Dispatch: up to 2 loads (op=0x10)
+    input  wire        ld0_disp_en,
+    input  wire [5:0]  ld0_dest_preg,
+    input  wire [3:0]  ld0_rob_idx,
+    input  wire [63:0] ld0_base,
+    input  wire [11:0] ld0_L,
+    input  wire        ld1_disp_en,
+    input  wire [5:0]  ld1_dest_preg,
+    input  wire [3:0]  ld1_rob_idx,
+    input  wire [63:0] ld1_base,
+    input  wire [11:0] ld1_L,
 
     // Dispatch: store (op=0x13)
     input  wire        st_disp_en,
@@ -29,6 +34,7 @@ module lsq (
 
     output reg  [63:0] mem_rd_addr,
     input  wire [63:0] mem_rd_data,
+    input  wire        ld_cdb_grant,
     output reg         ld_cdb_valid,
     output reg  [63:0] ld_cdb_data,
     output reg  [5:0]  ld_cdb_preg,
@@ -42,6 +48,7 @@ module lsq (
     output wire        ld_full,
     output wire        st_full,
     output wire        ld_one_avail,
+    output wire        ld_two_avail,
     output wire        st_one_avail
 );
     localparam LQ_DEPTH = 4;
@@ -70,6 +77,7 @@ module lsq (
     assign ld_full = (lq_count >= LQ_DEPTH - 1);
     assign st_full = (sq_count >= SQ_DEPTH - 1);
     assign ld_one_avail = (lq_count < LQ_DEPTH);
+    assign ld_two_avail = (lq_count <= LQ_DEPTH - 2);
     assign st_one_avail = (sq_count < SQ_DEPTH);
 
     integer i;
@@ -98,6 +106,7 @@ module lsq (
     always @(posedge clk) begin
         reg lq_push;
         reg lq_pop;
+        reg [1:0] lq_push_count;
         reg sq_push;
         reg sq_pop;
         if (reset || flush) begin
@@ -113,6 +122,7 @@ module lsq (
         end else begin
             lq_push = 0;
             lq_pop = 0;
+            lq_push_count = 0;
             sq_push = 0;
             sq_pop = 0;
 
@@ -126,14 +136,24 @@ module lsq (
                 end
             end
 
-            if (ld_disp_en && lq_count < LQ_DEPTH) begin
-                lq_v   [lq_tail] <= 1;
-                lq_preg[lq_tail] <= ld_dest_preg;
-                lq_rob [lq_tail] <= ld_rob_idx;
-                lq_addr[lq_tail] <= ld_base + {{52{ld_L[11]}}, ld_L};
-                lq_sent[lq_tail] <= 0;
-                lq_tail  <= lq_tail + 1;
+            if (ld0_disp_en && (lq_count + lq_push_count < LQ_DEPTH)) begin
+                lq_v   [lq_tail + lq_push_count] <= 1;
+                lq_preg[lq_tail + lq_push_count] <= ld0_dest_preg;
+                lq_rob [lq_tail + lq_push_count] <= ld0_rob_idx;
+                lq_addr[lq_tail + lq_push_count] <= ld0_base + {{52{ld0_L[11]}}, ld0_L};
+                lq_sent[lq_tail + lq_push_count] <= 0;
                 lq_push = 1;
+                lq_push_count = lq_push_count + 1'b1;
+            end
+
+            if (ld1_disp_en && (lq_count + lq_push_count < LQ_DEPTH)) begin
+                lq_v   [lq_tail + lq_push_count] <= 1;
+                lq_preg[lq_tail + lq_push_count] <= ld1_dest_preg;
+                lq_rob [lq_tail + lq_push_count] <= ld1_rob_idx;
+                lq_addr[lq_tail + lq_push_count] <= ld1_base + {{52{ld1_L[11]}}, ld1_L};
+                lq_sent[lq_tail + lq_push_count] <= 0;
+                lq_push = 1;
+                lq_push_count = lq_push_count + 1'b1;
             end
 
             if (st_disp_en && sq_count < SQ_DEPTH) begin
@@ -147,16 +167,18 @@ module lsq (
                 sq_push = 1;
             end
 
-            ld_cdb_valid <= 0;
-            if (lq_v[lq_head] && !lq_sent[lq_head]) begin
+            if (ld_cdb_valid) begin
+                if (ld_cdb_grant) begin
+                    ld_cdb_valid <= 0;
+                    lq_v[lq_head] <= 0;
+                    lq_pop = 1;
+                end
+            end else if (lq_v[lq_head] && !lq_sent[lq_head]) begin
                 if (fwd_found) begin
                     ld_cdb_valid <= 1;
                     ld_cdb_data  <= fwd_data;
                     ld_cdb_preg  <= lq_preg[lq_head];
                     ld_cdb_rob   <= lq_rob[lq_head];
-                    lq_v[lq_head] <= 0;
-                    lq_head  <= lq_head + 1;
-                    lq_pop = 1;
                 end else begin
                     mem_rd_addr <= lq_addr[lq_head];
                     lq_sent[lq_head]  <= 1;
@@ -166,9 +188,6 @@ module lsq (
                 ld_cdb_data  <= mem_rd_data;
                 ld_cdb_preg  <= lq_preg[lq_head];
                 ld_cdb_rob   <= lq_rob[lq_head];
-                lq_v[lq_head] <= 0;
-                lq_head  <= lq_head + 1;
-                lq_pop = 1;
             end
 
             if (store_commit_fire) begin
@@ -177,11 +196,11 @@ module lsq (
                 sq_pop = 1;
             end
 
-            case ({lq_push, lq_pop})
-                2'b10: lq_count <= lq_count + 1'b1;
-                2'b01: lq_count <= lq_count - 1'b1;
-                default: lq_count <= lq_count;
-            endcase
+            if (lq_pop)
+                lq_head <= lq_head + 1'b1;
+            if (lq_push)
+                lq_tail <= lq_tail + lq_push_count;
+            lq_count <= lq_count + lq_push_count - (lq_pop ? 1'b1 : 1'b0);
 
             case ({sq_push, sq_pop})
                 2'b10: sq_count <= sq_count + 1'b1;

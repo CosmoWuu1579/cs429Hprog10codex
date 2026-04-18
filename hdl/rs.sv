@@ -1,5 +1,6 @@
 module rs #(
-    parameter DEPTH = 8
+    parameter DEPTH = 8,
+    parameter ISSUE_TWO = 1
 ) (
     input  clk,
     input  reset,
@@ -15,15 +16,19 @@ module rs #(
     input  wire [5:0]  disp0_s_preg,
     input  wire [63:0] disp0_s_val,
     input  wire        disp0_s_rdy,
+    input  wire        disp0_s_block_cdb,
     input  wire [5:0]  disp0_t_preg,
     input  wire [63:0] disp0_t_val,
     input  wire        disp0_t_rdy,
+    input  wire        disp0_t_block_cdb,
     input  wire [11:0] disp0_L,
     input  wire [63:0] disp0_pc,
+    input  wire [63:0] disp0_pred_pc,
     // 3rd source (rd) for brgt; use rd_rdy=1 for all other instructions
     input  wire [5:0]  disp0_rd_preg,
     input  wire [63:0] disp0_rd_val,
     input  wire        disp0_rd_rdy,
+    input  wire        disp0_rd_block_cdb,
 
     // Dispatch port 1
     input  wire        disp1_en,
@@ -33,14 +38,18 @@ module rs #(
     input  wire [5:0]  disp1_s_preg,
     input  wire [63:0] disp1_s_val,
     input  wire        disp1_s_rdy,
+    input  wire        disp1_s_block_cdb,
     input  wire [5:0]  disp1_t_preg,
     input  wire [63:0] disp1_t_val,
     input  wire        disp1_t_rdy,
+    input  wire        disp1_t_block_cdb,
     input  wire [11:0] disp1_L,
     input  wire [63:0] disp1_pc,
+    input  wire [63:0] disp1_pred_pc,
     input  wire [5:0]  disp1_rd_preg,
     input  wire [63:0] disp1_rd_val,
     input  wire        disp1_rd_rdy,
+    input  wire        disp1_rd_block_cdb,
 
     // CDB snoop (2 buses)
     input  wire        cdb0_valid,
@@ -58,6 +67,7 @@ module rs #(
     output reg  [63:0] issue_src2,
     output reg  [11:0] issue_L,
     output reg  [63:0] issue_pc,
+    output reg  [63:0] issue_pred_pc,
     output reg  [63:0] issue_rd_val,
     output reg         issue2_valid,
     output reg  [4:0]  issue2_op,
@@ -67,6 +77,7 @@ module rs #(
     output reg  [63:0] issue2_src2,
     output reg  [11:0] issue2_L,
     output reg  [63:0] issue2_pc,
+    output reg  [63:0] issue2_pred_pc,
     output reg  [63:0] issue2_rd_val,
     output wire        full,
     output wire        one_avail,
@@ -84,6 +95,7 @@ module rs #(
     reg        t_rdy   [0:DEPTH-1];
     reg [11:0] L_f     [0:DEPTH-1];
     reg [63:0] pc_f    [0:DEPTH-1];
+    reg [63:0] pred_pc_f [0:DEPTH-1];
     reg [5:0]  rd_preg [0:DEPTH-1];  // 3rd source preg (brgt rd target)
     reg [63:0] rd_val  [0:DEPTH-1];  // 3rd source value
     reg        rd_rdy  [0:DEPTH-1];  // 3rd source ready (1 for non-brgt)
@@ -159,7 +171,7 @@ module rs #(
             end
         end
         for (i = 0; i < DEPTH; i = i + 1) begin
-            if (v[i] &&
+            if (ISSUE_TWO && v[i] &&
                 (!sel_found || !is_control_op(op[sel])) &&
                 (i[2:0] != sel || !sel_found) &&
                 (!is_control_op(op[i]) || (rob_idx[i] == rob_head_idx)) &&
@@ -189,6 +201,7 @@ module rs #(
             issue_src2 <= 0;
             issue_L <= 0;
             issue_pc <= 0;
+            issue_pred_pc <= 0;
             issue_rd_val <= 0;
             issue2_valid <= 0;
             issue2_op <= 0;
@@ -198,6 +211,7 @@ module rs #(
             issue2_src2 <= 0;
             issue2_L <= 0;
             issue2_pc <= 0;
+            issue2_pred_pc <= 0;
             issue2_rd_val <= 0;
         end else begin
             issue_valid <= 0;
@@ -236,6 +250,7 @@ module rs #(
                 issue_src2 <= operand_value_now(t_rdy[sel], t_preg[sel], t_val[sel]);
                 issue_L <= L_f[sel];
                 issue_pc <= pc_f[sel];
+                issue_pred_pc <= pred_pc_f[sel];
                 issue_rd_val <= operand_value_now(rd_rdy[sel], rd_preg[sel], rd_val[sel]);
                 v[sel] <= 0;
             end
@@ -248,6 +263,7 @@ module rs #(
                 issue2_src2 <= operand_value_now(t_rdy[sel2], t_preg[sel2], t_val[sel2]);
                 issue2_L <= L_f[sel2];
                 issue2_pc <= pc_f[sel2];
+                issue2_pred_pc <= pred_pc_f[sel2];
                 issue2_rd_val <= operand_value_now(rd_rdy[sel2], rd_preg[sel2], rd_val[sel2]);
                 v[sel2] <= 0;
             end
@@ -260,24 +276,25 @@ module rs #(
                 t_preg[free0] <= disp0_t_preg;
                 L_f[free0] <= disp0_L;
                 pc_f[free0] <= disp0_pc;
+                pred_pc_f[free0] <= disp0_pred_pc;
                 rd_preg[free0] <= disp0_rd_preg;
-                if (!disp0_s_rdy && cdb0_valid && disp0_s_preg == cdb0_preg) begin
+                if (!disp0_s_rdy && !disp0_s_block_cdb && cdb0_valid && disp0_s_preg == cdb0_preg) begin
                     s_val[free0] <= cdb0_data; s_rdy[free0] <= 1;
-                end else if (!disp0_s_rdy && cdb1_valid && disp0_s_preg == cdb1_preg) begin
+                end else if (!disp0_s_rdy && !disp0_s_block_cdb && cdb1_valid && disp0_s_preg == cdb1_preg) begin
                     s_val[free0] <= cdb1_data; s_rdy[free0] <= 1;
                 end else begin
                     s_val[free0] <= disp0_s_val; s_rdy[free0] <= disp0_s_rdy;
                 end
-                if (!disp0_t_rdy && cdb0_valid && disp0_t_preg == cdb0_preg) begin
+                if (!disp0_t_rdy && !disp0_t_block_cdb && cdb0_valid && disp0_t_preg == cdb0_preg) begin
                     t_val[free0] <= cdb0_data; t_rdy[free0] <= 1;
-                end else if (!disp0_t_rdy && cdb1_valid && disp0_t_preg == cdb1_preg) begin
+                end else if (!disp0_t_rdy && !disp0_t_block_cdb && cdb1_valid && disp0_t_preg == cdb1_preg) begin
                     t_val[free0] <= cdb1_data; t_rdy[free0] <= 1;
                 end else begin
                     t_val[free0] <= disp0_t_val; t_rdy[free0] <= disp0_t_rdy;
                 end
-                if (!disp0_rd_rdy && cdb0_valid && disp0_rd_preg == cdb0_preg) begin
+                if (!disp0_rd_rdy && !disp0_rd_block_cdb && cdb0_valid && disp0_rd_preg == cdb0_preg) begin
                     rd_val[free0] <= cdb0_data; rd_rdy[free0] <= 1;
-                end else if (!disp0_rd_rdy && cdb1_valid && disp0_rd_preg == cdb1_preg) begin
+                end else if (!disp0_rd_rdy && !disp0_rd_block_cdb && cdb1_valid && disp0_rd_preg == cdb1_preg) begin
                     rd_val[free0] <= cdb1_data; rd_rdy[free0] <= 1;
                 end else begin
                     rd_val[free0] <= disp0_rd_val; rd_rdy[free0] <= disp0_rd_rdy;
@@ -292,24 +309,25 @@ module rs #(
                 t_preg[free1] <= disp1_t_preg;
                 L_f[free1] <= disp1_L;
                 pc_f[free1] <= disp1_pc;
+                pred_pc_f[free1] <= disp1_pred_pc;
                 rd_preg[free1] <= disp1_rd_preg;
-                if (!disp1_s_rdy && cdb0_valid && disp1_s_preg == cdb0_preg) begin
+                if (!disp1_s_rdy && !disp1_s_block_cdb && cdb0_valid && disp1_s_preg == cdb0_preg) begin
                     s_val[free1] <= cdb0_data; s_rdy[free1] <= 1;
-                end else if (!disp1_s_rdy && cdb1_valid && disp1_s_preg == cdb1_preg) begin
+                end else if (!disp1_s_rdy && !disp1_s_block_cdb && cdb1_valid && disp1_s_preg == cdb1_preg) begin
                     s_val[free1] <= cdb1_data; s_rdy[free1] <= 1;
                 end else begin
                     s_val[free1] <= disp1_s_val; s_rdy[free1] <= disp1_s_rdy;
                 end
-                if (!disp1_t_rdy && cdb0_valid && disp1_t_preg == cdb0_preg) begin
+                if (!disp1_t_rdy && !disp1_t_block_cdb && cdb0_valid && disp1_t_preg == cdb0_preg) begin
                     t_val[free1] <= cdb0_data; t_rdy[free1] <= 1;
-                end else if (!disp1_t_rdy && cdb1_valid && disp1_t_preg == cdb1_preg) begin
+                end else if (!disp1_t_rdy && !disp1_t_block_cdb && cdb1_valid && disp1_t_preg == cdb1_preg) begin
                     t_val[free1] <= cdb1_data; t_rdy[free1] <= 1;
                 end else begin
                     t_val[free1] <= disp1_t_val; t_rdy[free1] <= disp1_t_rdy;
                 end
-                if (!disp1_rd_rdy && cdb0_valid && disp1_rd_preg == cdb0_preg) begin
+                if (!disp1_rd_rdy && !disp1_rd_block_cdb && cdb0_valid && disp1_rd_preg == cdb0_preg) begin
                     rd_val[free1] <= cdb0_data; rd_rdy[free1] <= 1;
-                end else if (!disp1_rd_rdy && cdb1_valid && disp1_rd_preg == cdb1_preg) begin
+                end else if (!disp1_rd_rdy && !disp1_rd_block_cdb && cdb1_valid && disp1_rd_preg == cdb1_preg) begin
                     rd_val[free1] <= cdb1_data; rd_rdy[free1] <= 1;
                 end else begin
                     rd_val[free1] <= disp1_rd_val; rd_rdy[free1] <= disp1_rd_rdy;
