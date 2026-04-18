@@ -166,7 +166,6 @@ module rs #(
                 else if (!fnd1) begin free1 = i[2:0]; fnd1 = 1; end
             end
             if (v[i] &&
-                (!is_control_op(op[i]) || (rob_idx[i] == rob_head_idx)) &&
                 operand_ready_now(s_rdy[i], s_preg[i]) &&
                 operand_ready_now(t_rdy[i], t_preg[i]) &&
                 operand_ready_now(rd_rdy[i], rd_preg[i])) begin
@@ -179,9 +178,7 @@ module rs #(
         end
         for (i = 0; i < DEPTH; i = i + 1) begin
             if (ISSUE_TWO && v[i] &&
-                (!sel_found || !is_control_op(op[sel])) &&
                 (i[2:0] != sel || !sel_found) &&
-                (!is_control_op(op[i]) || (rob_idx[i] == rob_head_idx)) &&
                 operand_ready_now(s_rdy[i], s_preg[i]) &&
                 operand_ready_now(t_rdy[i], t_preg[i]) &&
                 operand_ready_now(rd_rdy[i], rd_preg[i])) begin

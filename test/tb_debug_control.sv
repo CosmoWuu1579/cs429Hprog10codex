@@ -112,20 +112,31 @@ module tb_debug_control;
 
         reset = 1;
 
-        // Test 3: call stores link and return branches back to halt.
+        // Test 3: call stores link, jumps to callee, executes callee work, and returns.
         clear_program();
         write_instr(64'h2000, enc3(5'h0c, 5'd1, 5'd0, 5'd0));  // call r1
         write_instr(64'h2004, enc_halt());
-        write_instr(64'h2010, enc3(5'h0d, 5'd0, 5'd0, 5'd0));  // return
+        write_instr(64'h2008, encL(5'h19, 5'd3, 12'd1));       // must not execute before return
+        write_instr(64'h200C, enc_halt());                     // wrong-path halt must not retire
+        write_instr(64'h2010, encL(5'h19, 5'd2, 12'd7));       // callee work
+        write_instr(64'h2014, enc3(5'h0d, 5'd0, 5'd0, 5'd0));  // return
         bring_out_of_reset();
         dut.reg_file.registers[1] = 64'h2010;
         wait_for_halt(cycles);
-        if (!hlt || {dut.memory.bytes[64'd524287], dut.memory.bytes[64'd524286],
+        if (!hlt ||
+            dut.reg_file.registers[2] !== 64'd7 ||
+            dut.reg_file.registers[3] !== 64'd0 ||
+            {dut.memory.bytes[64'd524287], dut.memory.bytes[64'd524286],
                      dut.memory.bytes[64'd524285], dut.memory.bytes[64'd524284],
                      dut.memory.bytes[64'd524283], dut.memory.bytes[64'd524282],
                      dut.memory.bytes[64'd524281], dut.memory.bytes[64'd524280]}
                     !== 64'h0000_0000_0000_2004) begin
-            $display("FAIL call_return_case");
+            $display("FAIL call_return_case hlt=%b r2=%0d r3=%0d link=%h",
+                     hlt, dut.reg_file.registers[2], dut.reg_file.registers[3],
+                     {dut.memory.bytes[64'd524287], dut.memory.bytes[64'd524286],
+                      dut.memory.bytes[64'd524285], dut.memory.bytes[64'd524284],
+                      dut.memory.bytes[64'd524283], dut.memory.bytes[64'd524282],
+                      dut.memory.bytes[64'd524281], dut.memory.bytes[64'd524280]});
             failures = failures + 1;
         end
 

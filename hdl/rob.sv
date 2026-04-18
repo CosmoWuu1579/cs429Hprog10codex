@@ -200,7 +200,7 @@ module rob (
             end else begin
                 if (alloc0_en) begin
                     r_valid    [tail]   <= 1;
-                    r_ready    [tail]   <= alloc0_is_store || alloc0_is_halt;
+                    r_ready    [tail]   <= (alloc0_is_store && !alloc0_is_branch) || alloc0_is_halt;
                     r_fu_type  [tail]   <= alloc0_fu_type;
                     r_dareg    [tail]   <= alloc0_dest_areg;
                     r_dpreg    [tail]   <= alloc0_dest_preg;
@@ -216,7 +216,7 @@ module rob (
                 end
                 if (alloc1_en) begin
                     r_valid    [tail+1] <= 1;
-                    r_ready    [tail+1] <= alloc1_is_store || alloc1_is_halt;
+                    r_ready    [tail+1] <= (alloc1_is_store && !alloc1_is_branch) || alloc1_is_halt;
                     r_fu_type  [tail+1] <= alloc1_fu_type;
                     r_dareg    [tail+1] <= alloc1_dest_areg;
                     r_dpreg    [tail+1] <= alloc1_dest_preg;

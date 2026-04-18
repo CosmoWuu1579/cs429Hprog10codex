@@ -32,18 +32,29 @@ module fetch (
 
     integer i;
 
-    function slot0_predicted_taken;
+    function slot0_kills_slot1;
         input [63:0] base_pc;
         input [31:0] instr0;
         reg [4:0] op0;
+        reg [63:0] pred_tgt;
         begin
             op0 = instr0[31:27];
-            slot0_predicted_taken =
-                (op0 == 5'h08) || (op0 == 5'h09) || (op0 == 5'h0a) ||
-                (op0 == 5'h0c) || (op0 == 5'h0d) ||
-                (((op0 == 5'h0b) || (op0 == 5'h0e)) &&
-                 btb_valid[base_pc[5:2]] && btb_tag[base_pc[5:2]] == base_pc &&
-                 btb_ctr[base_pc[5:2]][1]);
+            pred_tgt = base_pc + 64'd4;
+            if (op0 == 5'h0a) begin
+                pred_tgt = base_pc + {{52{instr0[11]}}, instr0[11:0]};
+                slot0_kills_slot1 = (pred_tgt != base_pc + 64'd4);
+            end else if ((op0 == 5'h08) || (op0 == 5'h09) || (op0 == 5'h0b) ||
+                         (op0 == 5'h0c) || (op0 == 5'h0d) || (op0 == 5'h0e)) begin
+                if (btb_valid[base_pc[5:2]] && btb_tag[base_pc[5:2]] == base_pc &&
+                    btb_ctr[base_pc[5:2]][1]) begin
+                    pred_tgt = btb_tgt[base_pc[5:2]];
+                    slot0_kills_slot1 = (pred_tgt != base_pc + 64'd4);
+                end else begin
+                    slot0_kills_slot1 = 1'b1;
+                end
+            end else begin
+                slot0_kills_slot1 = 1'b0;
+            end
         end
     endfunction
 
@@ -56,6 +67,7 @@ module fetch (
         reg [11:0] l0;
         reg [11:0] l1;
         reg [63:0] pc1;
+        reg [63:0] slot0_tgt;
         begin
             op0 = instr0[31:27];
             op1 = instr1[31:27];
@@ -63,21 +75,30 @@ module fetch (
             l1 = instr1[11:0];
             pc1 = base_pc + 4;
             predict_next_pc = base_pc + 8;
+            slot0_tgt = pc1;
 
             if (op0 == 5'h0a) begin
-                predict_next_pc = base_pc + {{52{l0[11]}}, l0};
+                slot0_tgt = base_pc + {{52{l0[11]}}, l0};
+                if (slot0_tgt != pc1)
+                    predict_next_pc = slot0_tgt;
             end else if ((op0 == 5'h08 || op0 == 5'h09 || op0 == 5'h0b ||
                           op0 == 5'h0c || op0 == 5'h0d || op0 == 5'h0e) &&
                          btb_valid[base_pc[5:2]] && btb_tag[base_pc[5:2]] == base_pc &&
                          btb_ctr[base_pc[5:2]][1]) begin
-                predict_next_pc = btb_tgt[base_pc[5:2]];
-            end else if (op1 == 5'h0a) begin
+                slot0_tgt = btb_tgt[base_pc[5:2]];
+                if (slot0_tgt != pc1)
+                    predict_next_pc = slot0_tgt;
+            end
+
+            if (predict_next_pc == base_pc + 8 || slot0_tgt == pc1) begin
+                if (op1 == 5'h0a) begin
                 predict_next_pc = pc1 + {{52{l1[11]}}, l1};
-            end else if ((op1 == 5'h08 || op1 == 5'h09 || op1 == 5'h0b ||
-                          op1 == 5'h0c || op1 == 5'h0d || op1 == 5'h0e) &&
-                         btb_valid[pc1[5:2]] && btb_tag[pc1[5:2]] == pc1 &&
-                         btb_ctr[pc1[5:2]][1]) begin
-                predict_next_pc = btb_tgt[pc1[5:2]];
+                end else if ((op1 == 5'h08 || op1 == 5'h09 || op1 == 5'h0b ||
+                              op1 == 5'h0c || op1 == 5'h0d || op1 == 5'h0e) &&
+                             btb_valid[pc1[5:2]] && btb_tag[pc1[5:2]] == pc1 &&
+                             btb_ctr[pc1[5:2]][1]) begin
+                    predict_next_pc = btb_tgt[pc1[5:2]];
+                end
             end
         end
     endfunction
@@ -141,7 +162,7 @@ module fetch (
                     out_valid1 <= 1'b0;
                 end else begin
                     out_valid0 <= out_valid0;
-                    out_valid1 <= out_valid1 && !slot0_predicted_taken(out_pc0, out_instr0);
+                    out_valid1 <= out_valid1 && !slot0_kills_slot1(out_pc0, out_instr0);
                     out_instr0 <= out_instr0;
                     out_instr1 <= out_instr1;
                     out_pc0 <= out_pc0;
@@ -150,7 +171,7 @@ module fetch (
                 end
             end else begin
                 out_valid0 <= 1'b1;
-                out_valid1 <= !slot0_predicted_taken(pc, mem_instr0);
+                out_valid1 <= !slot0_kills_slot1(pc, mem_instr0);
                 out_instr0 <= mem_instr0;
                 out_instr1 <= mem_instr1;
                 out_pc0 <= pc;

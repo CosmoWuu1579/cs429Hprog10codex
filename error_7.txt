@@ -1,0 +1,27 @@
+[generated/benchmarks]         Dual-issue performance scoring complete
+Comparison mode: cycles only
+Zero-credit reference: opt_none
+Full-credit reference: opt_multi_issue
+Latency normalization: ALU student=3.0 ref=3.0, FPU student=3.0 ref=3.0
+Dual-issue performance raw points: 0.00 / 10 (unrounded 0.000)
+Benchmark score curve exponent: 0.50
+Dual-issue performance scale: 0.9655 (correctness gate: 0.9655^1.00)
+Dual-issue performance final points: 0.00 / 10 (unrounded after scale 0.000)
+Test                  Correct   Cycles    Score     Message                           
+--------------------------------------------------------------------------------------
+multi_issue           True      747       0.00      Adjusted cycles 747 (raw 747, offset 0)
+
+[generated/benchmarks | multi_issue]:
+<performance>: {'status': 'ok', 'comparison_mode': 'cycles', 'student_cycles': 747, 'adjusted_student_cycles': 747, 'cycle_adjustment': 0, 'raw_zero_credit_cycles': 566, 'raw_full_credit_cycles': 447, 'zero_credit_cycle_adjustment': 0, 'full_credit_cycle_adjustment': 0, 'zero_credit_cycles': 566, 'full_credit_cycles': 447, 'unadjusted_linear_score_ratio': 0.0, 'unadjusted_score_ratio': 0.0, 'linear_score_ratio': 0.0, 'grace_points': 0.0}
+<cycles>: 747
+<adjusted_cycles>: 747
+<cycle_adjustment>: 0
+<grace_points>: 0.0
+<message>: Adjusted cycles 747 (raw 747, offset 0)
+<stdout>:
+Header:          40
+Code:        1284
+Data:           0
+Loaded additional state from                                                                                                                                                                                                       ./tests/generated/benchmarks/multi_issue/multi_issue.state
+CYCLES:         747
+<stderr>:
