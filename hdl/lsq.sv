@@ -96,6 +96,10 @@ module lsq (
     end
 
     always @(posedge clk) begin
+        reg lq_push;
+        reg lq_pop;
+        reg sq_push;
+        reg sq_pop;
         if (reset || flush) begin
             for (i = 0; i < LQ_DEPTH; i = i + 1) lq_v[i] <= 0;
             for (i = 0; i < SQ_DEPTH; i = i + 1) sq_v[i] <= 0;
@@ -107,6 +111,11 @@ module lsq (
             ld_cdb_rob   <= 0;
             mem_rd_addr  <= 0;
         end else begin
+            lq_push = 0;
+            lq_pop = 0;
+            sq_push = 0;
+            sq_pop = 0;
+
             for (i = 0; i < SQ_DEPTH; i = i + 1) begin
                 if (sq_v[i] && !sq_drdy[i]) begin
                     if (cdb0_valid && sq_dpreg[i] == cdb0_preg) begin
@@ -124,7 +133,7 @@ module lsq (
                 lq_addr[lq_tail] <= ld_base + {{52{ld_L[11]}}, ld_L};
                 lq_sent[lq_tail] <= 0;
                 lq_tail  <= lq_tail + 1;
-                lq_count <= lq_count + 1;
+                lq_push = 1;
             end
 
             if (st_disp_en && sq_count < SQ_DEPTH) begin
@@ -135,7 +144,7 @@ module lsq (
                 sq_drdy [sq_tail] <= st_data_rdy;
                 sq_dpreg[sq_tail] <= st_data_preg;
                 sq_tail  <= sq_tail + 1;
-                sq_count <= sq_count + 1;
+                sq_push = 1;
             end
 
             ld_cdb_valid <= 0;
@@ -147,7 +156,7 @@ module lsq (
                     ld_cdb_rob   <= lq_rob[lq_head];
                     lq_v[lq_head] <= 0;
                     lq_head  <= lq_head + 1;
-                    lq_count <= lq_count - 1;
+                    lq_pop = 1;
                 end else begin
                     mem_rd_addr <= lq_addr[lq_head];
                     lq_sent[lq_head]  <= 1;
@@ -159,14 +168,26 @@ module lsq (
                 ld_cdb_rob   <= lq_rob[lq_head];
                 lq_v[lq_head] <= 0;
                 lq_head  <= lq_head + 1;
-                lq_count <= lq_count - 1;
+                lq_pop = 1;
             end
 
             if (store_commit_fire) begin
                 sq_v[sq_head] <= 0;
                 sq_head  <= sq_head + 1;
-                sq_count <= sq_count - 1;
+                sq_pop = 1;
             end
+
+            case ({lq_push, lq_pop})
+                2'b10: lq_count <= lq_count + 1'b1;
+                2'b01: lq_count <= lq_count - 1'b1;
+                default: lq_count <= lq_count;
+            endcase
+
+            case ({sq_push, sq_pop})
+                2'b10: sq_count <= sq_count + 1'b1;
+                2'b01: sq_count <= sq_count - 1'b1;
+                default: sq_count <= sq_count;
+            endcase
         end
     end
 endmodule
