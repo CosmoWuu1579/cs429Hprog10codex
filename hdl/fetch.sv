@@ -7,10 +7,14 @@ module fetch (
     input  wire        consume_slot0_only,
     input  wire        flush,
     input  wire [63:0] flush_pc,
-    input  wire        bp_update,
-    input  wire [63:0] bp_pc,
-    input  wire        bp_taken,
-    input  wire [63:0] bp_target,
+    input  wire        bp0_update,
+    input  wire [63:0] bp0_pc,
+    input  wire        bp0_taken,
+    input  wire [63:0] bp0_target,
+    input  wire        bp1_update,
+    input  wire [63:0] bp1_pc,
+    input  wire        bp1_taken,
+    input  wire [63:0] bp1_target,
     input  wire [31:0] mem_instr0,
     input  wire [31:0] mem_instr1,
     output wire [63:0] fetch_pc0,
@@ -45,10 +49,14 @@ module fetch (
                 slot0_kills_slot1 = (pred_tgt != base_pc + 64'd4);
             end else if ((op0 == 5'h08) || (op0 == 5'h09) || (op0 == 5'h0b) ||
                          (op0 == 5'h0c) || (op0 == 5'h0d) || (op0 == 5'h0e)) begin
-                if (btb_valid[base_pc[5:2]] && btb_tag[base_pc[5:2]] == base_pc &&
-                    btb_ctr[base_pc[5:2]][1]) begin
+                if (btb_valid[base_pc[5:2]] && btb_tag[base_pc[5:2]] == base_pc) begin
                     pred_tgt = btb_tgt[base_pc[5:2]];
-                    slot0_kills_slot1 = (pred_tgt != base_pc + 64'd4);
+                    if (pred_tgt == base_pc + 64'd4)
+                        slot0_kills_slot1 = 1'b0;
+                    else if (btb_ctr[base_pc[5:2]][1])
+                        slot0_kills_slot1 = 1'b1;
+                    else
+                        slot0_kills_slot1 = 1'b1;
                 end else begin
                     slot0_kills_slot1 = 1'b1;
                 end
@@ -68,6 +76,7 @@ module fetch (
         reg [11:0] l1;
         reg [63:0] pc1;
         reg [63:0] slot0_tgt;
+        reg        slot0_allows_slot1;
         begin
             op0 = instr0[31:27];
             op1 = instr1[31:27];
@@ -76,21 +85,30 @@ module fetch (
             pc1 = base_pc + 4;
             predict_next_pc = base_pc + 8;
             slot0_tgt = pc1;
+            slot0_allows_slot1 = 1'b1;
 
             if (op0 == 5'h0a) begin
                 slot0_tgt = base_pc + {{52{l0[11]}}, l0};
-                if (slot0_tgt != pc1)
+                if (slot0_tgt != pc1) begin
                     predict_next_pc = slot0_tgt;
+                    slot0_allows_slot1 = 1'b0;
+                end
             end else if ((op0 == 5'h08 || op0 == 5'h09 || op0 == 5'h0b ||
-                          op0 == 5'h0c || op0 == 5'h0d || op0 == 5'h0e) &&
-                         btb_valid[base_pc[5:2]] && btb_tag[base_pc[5:2]] == base_pc &&
-                         btb_ctr[base_pc[5:2]][1]) begin
-                slot0_tgt = btb_tgt[base_pc[5:2]];
-                if (slot0_tgt != pc1)
-                    predict_next_pc = slot0_tgt;
+                          op0 == 5'h0c || op0 == 5'h0d || op0 == 5'h0e)) begin
+                if (btb_valid[base_pc[5:2]] && btb_tag[base_pc[5:2]] == base_pc &&
+                    btb_ctr[base_pc[5:2]][1]) begin
+                    slot0_tgt = btb_tgt[base_pc[5:2]];
+                    if (slot0_tgt != pc1) begin
+                        predict_next_pc = slot0_tgt;
+                        slot0_allows_slot1 = 1'b0;
+                    end
+                end else begin
+                    predict_next_pc = pc1;
+                    slot0_allows_slot1 = 1'b0;
+                end
             end
 
-            if (predict_next_pc == base_pc + 8 || slot0_tgt == pc1) begin
+            if (slot0_allows_slot1) begin
                 if (op1 == 5'h0a) begin
                 predict_next_pc = pc1 + {{52{l1[11]}}, l1};
                 end else if ((op1 == 5'h08 || op1 == 5'h09 || op1 == 5'h0b ||
@@ -123,17 +141,32 @@ module fetch (
                 btb_ctr[i] <= 2'b01;
             end
         end else begin
-            if (bp_update) begin
-                btb_valid[bp_pc[5:2]] <= 1'b1;
-                btb_tag[bp_pc[5:2]] <= bp_pc;
-                btb_tgt[bp_pc[5:2]] <= bp_target;
-                if (bp_taken) begin
-                    if (btb_ctr[bp_pc[5:2]] != 2'b11) begin
-                        btb_ctr[bp_pc[5:2]] <= btb_ctr[bp_pc[5:2]] + 1'b1;
+            if (bp0_update) begin
+                btb_valid[bp0_pc[5:2]] <= 1'b1;
+                btb_tag[bp0_pc[5:2]] <= bp0_pc;
+                btb_tgt[bp0_pc[5:2]] <= bp0_target;
+                if (bp0_taken) begin
+                    if (btb_ctr[bp0_pc[5:2]] != 2'b11) begin
+                        btb_ctr[bp0_pc[5:2]] <= btb_ctr[bp0_pc[5:2]] + 1'b1;
                     end
                 end else begin
-                    if (btb_ctr[bp_pc[5:2]] != 2'b00) begin
-                        btb_ctr[bp_pc[5:2]] <= btb_ctr[bp_pc[5:2]] - 1'b1;
+                    if (btb_ctr[bp0_pc[5:2]] != 2'b00) begin
+                        btb_ctr[bp0_pc[5:2]] <= btb_ctr[bp0_pc[5:2]] - 1'b1;
+                    end
+                end
+            end
+
+            if (bp1_update) begin
+                btb_valid[bp1_pc[5:2]] <= 1'b1;
+                btb_tag[bp1_pc[5:2]] <= bp1_pc;
+                btb_tgt[bp1_pc[5:2]] <= bp1_target;
+                if (bp1_taken) begin
+                    if (btb_ctr[bp1_pc[5:2]] != 2'b11) begin
+                        btb_ctr[bp1_pc[5:2]] <= btb_ctr[bp1_pc[5:2]] + 1'b1;
+                    end
+                end else begin
+                    if (btb_ctr[bp1_pc[5:2]] != 2'b00) begin
+                        btb_ctr[bp1_pc[5:2]] <= btb_ctr[bp1_pc[5:2]] - 1'b1;
                     end
                 end
             end

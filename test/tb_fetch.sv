@@ -9,10 +9,14 @@ module tb_fetch;
     reg consume_slot0_only;
     reg flush;
     reg [63:0] flush_pc;
-    reg bp_update;
-    reg [63:0] bp_pc;
-    reg bp_taken;
-    reg [63:0] bp_target;
+    reg bp0_update;
+    reg [63:0] bp0_pc;
+    reg bp0_taken;
+    reg [63:0] bp0_target;
+    reg bp1_update;
+    reg [63:0] bp1_pc;
+    reg bp1_taken;
+    reg [63:0] bp1_target;
     reg [31:0] mem_instr0;
     reg [31:0] mem_instr1;
 
@@ -36,10 +40,14 @@ module tb_fetch;
         .consume_slot0_only(consume_slot0_only),
         .flush(flush),
         .flush_pc(flush_pc),
-        .bp_update(bp_update),
-        .bp_pc(bp_pc),
-        .bp_taken(bp_taken),
-        .bp_target(bp_target),
+        .bp0_update(bp0_update),
+        .bp0_pc(bp0_pc),
+        .bp0_taken(bp0_taken),
+        .bp0_target(bp0_target),
+        .bp1_update(bp1_update),
+        .bp1_pc(bp1_pc),
+        .bp1_taken(bp1_taken),
+        .bp1_target(bp1_target),
         .mem_instr0(mem_instr0),
         .mem_instr1(mem_instr1),
         .fetch_pc0(fetch_pc0),
@@ -68,10 +76,14 @@ module tb_fetch;
         consume_slot0_only = 0;
         flush = 0;
         flush_pc = 0;
-        bp_update = 0;
-        bp_pc = 0;
-        bp_taken = 0;
-        bp_target = 0;
+        bp0_update = 0;
+        bp0_pc = 0;
+        bp0_taken = 0;
+        bp0_target = 0;
+        bp1_update = 0;
+        bp1_pc = 0;
+        bp1_taken = 0;
+        bp1_target = 0;
         failures = 0;
 
         @(posedge clk);
