@@ -5,6 +5,8 @@ module tb_fetch;
     reg clk;
     reg reset;
     reg stall;
+    reg consume;
+    reg consume_slot0_only;
     reg flush;
     reg [63:0] flush_pc;
     reg bp_update;
@@ -30,6 +32,8 @@ module tb_fetch;
         .clk(clk),
         .reset(reset),
         .stall(stall),
+        .consume(consume),
+        .consume_slot0_only(consume_slot0_only),
         .flush(flush),
         .flush_pc(flush_pc),
         .bp_update(bp_update),
@@ -60,6 +64,8 @@ module tb_fetch;
         clk = 0;
         reset = 1;
         stall = 0;
+        consume = 0;
+        consume_slot0_only = 0;
         flush = 0;
         flush_pc = 0;
         bp_update = 0;
@@ -87,10 +93,19 @@ module tb_fetch;
         stall = 1;
         @(posedge clk);
         #1;
-        if (out_valid0 || out_valid1) begin
-            $display("FAIL fetch 3: dispatch during stall");
+        if (!out_valid0 || !out_valid1 || out_pc0 !== 64'h2000 || out_pc1 !== 64'h2004) begin
+            $display("FAIL fetch 3: hold during stall v0=%b v1=%b pc0=%h pc1=%h", out_valid0, out_valid1, out_pc0, out_pc1);
             failures = failures + 1;
         end
+
+        consume = 1;
+        @(posedge clk);
+        #1;
+        if (out_valid0 || out_valid1) begin
+            $display("FAIL fetch 4: consume during stall did not clear bundle");
+            failures = failures + 1;
+        end
+        consume = 0;
         stall = 0;
 
         flush = 1;
@@ -99,14 +114,23 @@ module tb_fetch;
         #1;
         flush = 0;
         if (fetch_pc0 !== 64'h4000 || out_valid0 || out_valid1) begin
-            $display("FAIL fetch 4: flush redirect failed");
+            $display("FAIL fetch 5: flush redirect failed");
             failures = failures + 1;
         end
 
         @(posedge clk);
         #1;
         if (!out_valid0 || out_pc0 !== 64'h4000) begin
-            $display("FAIL fetch 5: post-flush dispatch wrong");
+            $display("FAIL fetch 6: post-flush dispatch wrong");
+            failures = failures + 1;
+        end
+
+        consume_slot0_only = 1;
+        @(posedge clk);
+        #1;
+        consume_slot0_only = 0;
+        if (!out_valid0 || out_valid1 || out_pc0 !== 64'h4004) begin
+            $display("FAIL fetch 7: partial consume shift wrong v0=%b v1=%b pc0=%h", out_valid0, out_valid1, out_pc0);
             failures = failures + 1;
         end
 
@@ -118,4 +142,3 @@ module tb_fetch;
         $finish;
     end
 endmodule
-

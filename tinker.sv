@@ -317,11 +317,10 @@ wire slot1_ok =
     (!dec1_uses_ldq || ((dec0_uses_ldq && dec1_uses_ldq) ? ld_two_avail : ld_one_avail)) &&
     (!dec1_uses_stq || (!dec0_uses_stq && st_one_avail));
 
-wire bundle_ok = slot0_ok && (!f_valid1 || dec0_is_halt || slot1_ok);
-wire stall = f_valid0 && !bundle_ok;
-
-wire dispatch0_en = f_valid0 && bundle_ok && slot0_ok;
-wire dispatch1_en = f_valid1 && bundle_ok && !dec0_is_halt && slot1_ok;
+wire dispatch0_en = f_valid0 && slot0_ok;
+wire dispatch1_en = f_valid1 && slot0_ok && !dec0_is_halt && slot1_ok;
+wire consume_slot0_only = dispatch0_en && f_valid1 && !dispatch1_en && !dec0_is_halt;
+wire stall = f_valid0 && !slot0_ok;
 
 wire ren0_en = dispatch0_en && dec0_reg_wr;
 wire ren1_en = dispatch1_en && dec1_reg_wr;
@@ -354,6 +353,7 @@ fetch fetch_unit (
     .clk(clk), .reset(reset),
     .stall(stall),
     .consume(dispatch0_en || dispatch1_en),
+    .consume_slot0_only(consume_slot0_only),
     .flush(flush_sig), .flush_pc(flush_pc),
     .bp_update((alu0_v_r && alu0_br_r) || (alu1_v_r && alu1_br_r)),
     .bp_pc((alu0_v_r && alu0_br_r) ? alu0_pc_r : alu1_pc_r),

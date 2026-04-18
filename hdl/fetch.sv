@@ -4,6 +4,7 @@ module fetch (
     input  reset,
     input  wire        stall,
     input  wire        consume,
+    input  wire        consume_slot0_only,
     input  wire        flush,
     input  wire [63:0] flush_pc,
     input  wire        bp_update,
@@ -38,9 +39,9 @@ module fetch (
         begin
             op0 = instr0[31:27];
             slot0_predicted_taken =
-                (op0 == 5'h0a) ||
-                (((op0 == 5'h08) || (op0 == 5'h09) || (op0 == 5'h0b) ||
-                  (op0 == 5'h0c) || (op0 == 5'h0d) || (op0 == 5'h0e)) &&
+                (op0 == 5'h08) || (op0 == 5'h09) || (op0 == 5'h0a) ||
+                (op0 == 5'h0c) || (op0 == 5'h0d) ||
+                (((op0 == 5'h0b) || (op0 == 5'h0e)) &&
                  btb_valid[base_pc[5:2]] && btb_tag[base_pc[5:2]] == base_pc &&
                  btb_ctr[base_pc[5:2]][1]);
         end
@@ -125,18 +126,27 @@ module fetch (
                 out_pc0 <= 64'b0;
                 out_pc1 <= 64'b0;
                 out_pred_pc <= flush_pc + 8;
+            end else if (consume_slot0_only) begin
+                pc <= out_pc1 + 64'd4;
+                out_valid0 <= out_valid1;
+                out_instr0 <= out_instr1;
+                out_pc0 <= out_pc1;
+                out_valid1 <= 1'b0;
+                out_instr1 <= 32'b0;
+                out_pc1 <= out_pc1 + 64'd4;
+                out_pred_pc <= predict_next_pc(out_pc1, out_instr1, 32'b0);
             end else if (stall) begin
                 if (consume) begin
                     out_valid0 <= 1'b0;
                     out_valid1 <= 1'b0;
                 end else begin
                     out_valid0 <= out_valid0;
-                    out_valid1 <= out_valid1;
+                    out_valid1 <= out_valid1 && !slot0_predicted_taken(out_pc0, out_instr0);
                     out_instr0 <= out_instr0;
                     out_instr1 <= out_instr1;
                     out_pc0 <= out_pc0;
                     out_pc1 <= out_pc1;
-                    out_pred_pc <= out_pred_pc;
+                    out_pred_pc <= predict_next_pc(out_pc0, out_instr0, out_instr1);
                 end
             end else begin
                 out_valid0 <= 1'b1;

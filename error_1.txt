@@ -25,3 +25,4 @@ Data:           0
 Loaded additional state from                                                                                                                                                                                                         ./tests/generated/benchmarks/ooo_window/ooo_window.state
 CYCLES:          40
 <stderr>:
+

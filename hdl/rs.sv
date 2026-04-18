@@ -126,8 +126,8 @@ module rs #(
         input [5:0] preg;
         begin
             operand_ready_now = ready_bit ||
-                                (cdb0_valid && preg == cdb0_preg) ||
-                                (cdb1_valid && preg == cdb1_preg);
+                                (cdb0_valid && cdb0_rw && preg == cdb0_preg) ||
+                                (cdb1_valid && cdb1_rw && preg == cdb1_preg);
         end
     endfunction
 
@@ -136,9 +136,9 @@ module rs #(
         input [5:0] preg;
         input [63:0] value;
         begin
-            if (!ready_bit && cdb0_valid && preg == cdb0_preg)
+            if (!ready_bit && cdb0_valid && cdb0_rw && preg == cdb0_preg)
                 operand_value_now = cdb0_data;
-            else if (!ready_bit && cdb1_valid && preg == cdb1_preg)
+            else if (!ready_bit && cdb1_valid && cdb1_rw && preg == cdb1_preg)
                 operand_value_now = cdb1_data;
             else
                 operand_value_now = value;

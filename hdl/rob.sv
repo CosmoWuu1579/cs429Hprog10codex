@@ -157,7 +157,9 @@ module rob (
                 r_actual_pc[cdb1_rob_idx] <= cdb1_actual_pc;
             end
 
-            if (can_commit0) begin
+            if (!r_valid[head] && count != 0) begin
+                next_head = head + 1'b1;
+            end else if (can_commit0) begin
                 r_valid[head]    <= 0;
                 commit_cnt        = 1;
                 next_head         = head + 1'b1;
