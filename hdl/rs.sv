@@ -59,6 +59,15 @@ module rs #(
     output reg  [11:0] issue_L,
     output reg  [63:0] issue_pc,
     output reg  [63:0] issue_rd_val,
+    output reg         issue2_valid,
+    output reg  [4:0]  issue2_op,
+    output reg  [5:0]  issue2_dest_preg,
+    output reg  [3:0]  issue2_rob_idx,
+    output reg  [63:0] issue2_src1,
+    output reg  [63:0] issue2_src2,
+    output reg  [11:0] issue2_L,
+    output reg  [63:0] issue2_pc,
+    output reg  [63:0] issue2_rd_val,
     output wire        full,
     output wire        one_avail,
     output wire        two_avail
@@ -87,6 +96,35 @@ module rs #(
             rob_age = idx - head_idx;
         end
     endfunction
+    function is_control_op;
+        input [4:0] opcode;
+        begin
+            is_control_op = (opcode >= 5'h08 && opcode <= 5'h0e);
+        end
+    endfunction
+    function operand_ready_now;
+        input ready_bit;
+        input [5:0] preg;
+        begin
+            operand_ready_now = ready_bit ||
+                                (cdb0_valid && preg == cdb0_preg) ||
+                                (cdb1_valid && preg == cdb1_preg);
+        end
+    endfunction
+
+    function [63:0] operand_value_now;
+        input ready_bit;
+        input [5:0] preg;
+        input [63:0] value;
+        begin
+            if (!ready_bit && cdb0_valid && preg == cdb0_preg)
+                operand_value_now = cdb0_data;
+            else if (!ready_bit && cdb1_valid && preg == cdb1_preg)
+                operand_value_now = cdb1_data;
+            else
+                operand_value_now = value;
+        end
+    endfunction
 
     reg [3:0] free_count;
     reg [2:0] free0, free1;
@@ -94,21 +132,44 @@ module rs #(
     reg [2:0]  sel;
     reg        sel_found;
     reg [3:0]  sel_age;
+    reg [2:0]  sel2;
+    reg        sel2_found;
+    reg [3:0]  sel2_age;
     always @(*) begin
         free_count = 0;
         free0 = 0; free1 = 0; fnd0 = 0; fnd1 = 0;
         sel = 0; sel_found = 0; sel_age = 4'hF;
+        sel2 = 0; sel2_found = 0; sel2_age = 4'hF;
         for (i = 0; i < DEPTH; i = i + 1) begin
             if (!v[i]) begin
                 free_count = free_count + 1;
                 if (!fnd0) begin free0 = i[2:0]; fnd0 = 1; end
                 else if (!fnd1) begin free1 = i[2:0]; fnd1 = 1; end
             end
-            if (v[i] && s_rdy[i] && t_rdy[i] && rd_rdy[i]) begin
+            if (v[i] &&
+                (!is_control_op(op[i]) || (rob_idx[i] == rob_head_idx)) &&
+                operand_ready_now(s_rdy[i], s_preg[i]) &&
+                operand_ready_now(t_rdy[i], t_preg[i]) &&
+                operand_ready_now(rd_rdy[i], rd_preg[i])) begin
                 if (!sel_found || rob_age(rob_idx[i], rob_head_idx) < sel_age) begin
                     sel = i[2:0];
                     sel_age = rob_age(rob_idx[i], rob_head_idx);
                     sel_found = 1;
+                end
+            end
+        end
+        for (i = 0; i < DEPTH; i = i + 1) begin
+            if (v[i] &&
+                (!sel_found || !is_control_op(op[sel])) &&
+                (i[2:0] != sel || !sel_found) &&
+                (!is_control_op(op[i]) || (rob_idx[i] == rob_head_idx)) &&
+                operand_ready_now(s_rdy[i], s_preg[i]) &&
+                operand_ready_now(t_rdy[i], t_preg[i]) &&
+                operand_ready_now(rd_rdy[i], rd_preg[i])) begin
+                if (!sel2_found || rob_age(rob_idx[i], rob_head_idx) < sel2_age) begin
+                    sel2 = i[2:0];
+                    sel2_age = rob_age(rob_idx[i], rob_head_idx);
+                    sel2_found = 1;
                 end
             end
         end
@@ -129,8 +190,18 @@ module rs #(
             issue_L <= 0;
             issue_pc <= 0;
             issue_rd_val <= 0;
+            issue2_valid <= 0;
+            issue2_op <= 0;
+            issue2_dest_preg <= 0;
+            issue2_rob_idx <= 0;
+            issue2_src1 <= 0;
+            issue2_src2 <= 0;
+            issue2_L <= 0;
+            issue2_pc <= 0;
+            issue2_rd_val <= 0;
         end else begin
             issue_valid <= 0;
+            issue2_valid <= 0;
             for (i = 0; i < DEPTH; i = i + 1) begin
                 if (v[i]) begin
                     if (!s_rdy[i]) begin
@@ -161,12 +232,24 @@ module rs #(
                 issue_op <= op[sel];
                 issue_dest_preg <= dest_pr[sel];
                 issue_rob_idx <= rob_idx[sel];
-                issue_src1 <= s_val[sel];
-                issue_src2 <= t_val[sel];
+                issue_src1 <= operand_value_now(s_rdy[sel], s_preg[sel], s_val[sel]);
+                issue_src2 <= operand_value_now(t_rdy[sel], t_preg[sel], t_val[sel]);
                 issue_L <= L_f[sel];
                 issue_pc <= pc_f[sel];
-                issue_rd_val <= rd_val[sel];
+                issue_rd_val <= operand_value_now(rd_rdy[sel], rd_preg[sel], rd_val[sel]);
                 v[sel] <= 0;
+            end
+            if (sel2_found) begin
+                issue2_valid <= 1;
+                issue2_op <= op[sel2];
+                issue2_dest_preg <= dest_pr[sel2];
+                issue2_rob_idx <= rob_idx[sel2];
+                issue2_src1 <= operand_value_now(s_rdy[sel2], s_preg[sel2], s_val[sel2]);
+                issue2_src2 <= operand_value_now(t_rdy[sel2], t_preg[sel2], t_val[sel2]);
+                issue2_L <= L_f[sel2];
+                issue2_pc <= pc_f[sel2];
+                issue2_rd_val <= operand_value_now(rd_rdy[sel2], rd_preg[sel2], rd_val[sel2]);
+                v[sel2] <= 0;
             end
             if (disp0_en && fnd0) begin
                 v[free0] <= 1;

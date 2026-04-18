@@ -3,6 +3,7 @@ module fetch (
     input  clk,
     input  reset,
     input  wire        stall,
+    input  wire        consume,
     input  wire        flush,
     input  wire [63:0] flush_pc,
     input  wire        bp_update,
@@ -108,13 +109,18 @@ module fetch (
                 out_pc1 <= 64'b0;
                 out_pred_pc <= flush_pc + 8;
             end else if (stall) begin
-                out_valid0 <= out_valid0;
-                out_valid1 <= out_valid1;
-                out_instr0 <= out_instr0;
-                out_instr1 <= out_instr1;
-                out_pc0 <= out_pc0;
-                out_pc1 <= out_pc1;
-                out_pred_pc <= out_pred_pc;
+                if (consume) begin
+                    out_valid0 <= 1'b0;
+                    out_valid1 <= 1'b0;
+                end else begin
+                    out_valid0 <= out_valid0;
+                    out_valid1 <= out_valid1;
+                    out_instr0 <= out_instr0;
+                    out_instr1 <= out_instr1;
+                    out_pc0 <= out_pc0;
+                    out_pc1 <= out_pc1;
+                    out_pred_pc <= out_pred_pc;
+                end
             end else begin
                 out_valid0 <= 1'b1;
                 out_valid1 <= 1'b1;

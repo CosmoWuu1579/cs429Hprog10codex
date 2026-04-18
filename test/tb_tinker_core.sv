@@ -225,6 +225,31 @@ module tb_tinker_core;
             failures = failures + 1;
         end
 
+        clear_mem();
+        clear_regs();
+        write_instr(64'h2000, encL(5'h19, 5'd1, 12'd1));
+        write_instr(64'h2004, encL(5'h19, 5'd2, 12'd1));
+        write_instr(64'h2008, encL(5'h19, 5'd17, 12'd1));
+        write_instr(64'h200C, encL(5'h19, 5'd18, 12'd1));
+        write_instr(64'h2010, encL(5'h19, 5'd29, 12'd1));
+        write_instr(64'h2014, encL(5'h19, 5'd30, 12'd1));
+        write_instr(64'h2018, enc_halt());
+        boot_core();
+        wait_for_halt(timeout);
+        if (timeout >= 500 ||
+            dut.reg_file.registers[1] !== 64'd1 ||
+            dut.reg_file.registers[2] !== 64'd1 ||
+            dut.reg_file.registers[17] !== 64'd1 ||
+            dut.reg_file.registers[18] !== 64'd1 ||
+            dut.reg_file.registers[29] !== 64'd1 ||
+            dut.reg_file.registers[30] !== 64'd1) begin
+            $display("FAIL test8_forwarding_boundary: timeout=%0d r1=%0d r2=%0d r17=%0d r18=%0d r29=%0d r30=%0d",
+                     timeout, dut.reg_file.registers[1], dut.reg_file.registers[2],
+                     dut.reg_file.registers[17], dut.reg_file.registers[18],
+                     dut.reg_file.registers[29], dut.reg_file.registers[30]);
+            failures = failures + 1;
+        end
+
         if (failures == 0)
             $display("PASS: tinker_core regression tests passed");
         else

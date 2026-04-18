@@ -199,6 +199,9 @@ reg [5:0]  alu0_dest_r, alu1_dest_r;
 reg [3:0]  alu0_rob_r,  alu1_rob_r;
 reg        alu0_mis_r,  alu1_mis_r;
 reg [63:0] alu0_apc_r,  alu1_apc_r;
+reg [63:0] alu0_pc_r,   alu1_pc_r;
+reg        alu0_br_r,   alu1_br_r;
+reg        alu0_taken_r,alu1_taken_r;
 
 // ---------------------------------------------------------------------------
 // FPU issue wires
@@ -260,8 +263,8 @@ assign cdb1_data = alu1_v_r    ? alu1_res_r  : fpu0_out_v ? fpu0_res :
                    fpu1_out_v  ? fpu1_res     : lsq_ld_cdb_data;
 assign cdb1_rob  = alu1_v_r    ? alu1_rob_r  : fpu0_out_v ? fpu0_orob :
                    fpu1_out_v  ? fpu1_orob    : lsq_ld_cdb_rob;
-assign cdb1_mis  = 1'b0;
-assign cdb1_apc  = 64'b0;
+assign cdb1_mis  = alu1_v_r ? alu1_mis_r : 1'b0;
+assign cdb1_apc  = alu1_v_r ? alu1_apc_r : 64'b0;
 
 // ---------------------------------------------------------------------------
 // ROB commit
@@ -346,11 +349,12 @@ memory memory (
 fetch fetch_unit (
     .clk(clk), .reset(reset),
     .stall(stall),
+    .consume(dispatch0_en || dispatch1_en),
     .flush(flush_sig), .flush_pc(flush_pc),
-    .bp_update(alu0_v_r && alu0_mis_r),
-    .bp_pc(alu0_apc_r - 4),  // alu0_apc_r is actual_pc; bp_pc = instruction pc = actual - delta
-    .bp_taken(1'b1),
-    .bp_target(alu0_apc_r),
+    .bp_update((alu0_v_r && alu0_br_r) || (alu1_v_r && alu1_br_r)),
+    .bp_pc((alu0_v_r && alu0_br_r) ? alu0_pc_r : alu1_pc_r),
+    .bp_taken((alu0_v_r && alu0_br_r) ? alu0_taken_r : alu1_taken_r),
+    .bp_target((alu0_v_r && alu0_br_r) ? alu0_apc_r : alu1_apc_r),
     .mem_instr0(mem_instr0), .mem_instr1(mem_instr1),
     .fetch_pc0(fetch_pc0_addr), .fetch_pc1(fetch_pc1_addr),
     .out_valid0(f_valid0), .out_instr0(f_instr0), .out_pc0(f_pc0),
@@ -533,17 +537,12 @@ rs #(.DEPTH(8)) alu_rs (
     .issue_dest_preg(alu0_dest), .issue_rob_idx(alu0_rob),
     .issue_src1(alu0_src1), .issue_src2(alu0_src2),
     .issue_L(alu0_iss_L), .issue_pc(alu0_pc), .issue_rd_val(alu0_rdv),
+    .issue2_valid(alu1_iss_valid), .issue2_op(alu1_op),
+    .issue2_dest_preg(alu1_dest), .issue2_rob_idx(alu1_rob),
+    .issue2_src1(alu1_src1), .issue2_src2(alu1_src2),
+    .issue2_L(alu1_iss_L), .issue2_pc(alu1_pc), .issue2_rd_val(alu1_rdv),
     .full(alu_rs_full), .one_avail(alu_rs_one_avail), .two_avail(alu_rs_two_avail)
 );
-
-// Second integer RS feeds ALU1 (dispatches nothing — only handles overflow
-// from ALU RS; both ALUs share the same RS for simplicity)
-// In this simplified design, both ALU instances share the single alu_rs.
-// alu1 is unused. We keep the wire declarations for the two-ALU structure.
-assign alu1_iss_valid = 1'b0;
-assign alu1_op   = 5'b0; assign alu1_dest = 6'b0; assign alu1_rob = 4'b0;
-assign alu1_src1 = 64'b0; assign alu1_src2 = 64'b0;
-assign alu1_iss_L = 12'b0; assign alu1_pc = 64'b0; assign alu1_rdv = 64'b0;
 
 // ---------------------------------------------------------------------------
 // FP RS
@@ -570,6 +569,8 @@ rs #(.DEPTH(8)) fpu_rs (
     .issue_dest_preg(fpu0_dest), .issue_rob_idx(fpu0_rob),
     .issue_src1(fpu0_src1), .issue_src2(fpu0_src2),
     .issue_L(fpu_dummy_L), .issue_pc(fpu_dummy_pc), .issue_rd_val(fpu_dummy_rdv),
+    .issue2_valid(), .issue2_op(), .issue2_dest_preg(), .issue2_rob_idx(),
+    .issue2_src1(), .issue2_src2(), .issue2_L(), .issue2_pc(), .issue2_rd_val(),
     .full(fpu_rs_full), .one_avail(fpu_rs_one_avail), .two_avail(fpu_rs_two_avail)
 );
 // Second FPU RS is disabled (single FP RS for simplicity)
@@ -589,10 +590,14 @@ alu_ls alu0_inst (
     .mem_read(alu0_mem_rd), .next_pc(alu0_next_pc)
 );
 
-// ALU1 outputs (unused, tied off)
-assign alu1_result=64'b0; assign alu1_reg_wr=0; assign alu1_mem_wr=0;
-assign alu1_mem_addr=64'b0; assign alu1_mem_wdata=64'b0;
-assign alu1_mem_rd=0; assign alu1_next_pc=64'b0;
+alu_ls alu1_inst (
+    .opcode(alu1_op), .src1(alu1_src1), .src2(alu1_src2),
+    .L(alu1_iss_L), .pc(alu1_pc), .r31(arch_r31_wire), .mem_val(mem_rd_data),
+    .rd_val(alu1_rdv),
+    .result(alu1_result), .reg_write(alu1_reg_wr),
+    .mem_write(alu1_mem_wr), .mem_addr(alu1_mem_addr), .mem_wdata(alu1_mem_wdata),
+    .mem_read(alu1_mem_rd), .next_pc(alu1_next_pc)
+);
 
 // Register ALU0 output (1-cycle pipeline)
 always @(posedge clk) begin
@@ -610,18 +615,36 @@ always @(posedge clk) begin
                        (alu0_op >= 5'h08 && alu0_op <= 5'h0e) &&
                        (alu0_next_pc != alu0_pc + 4);
         alu0_apc_r  <= alu0_next_pc;
-        alu1_v_r    <= 0;  // ALU1 unused
+        alu0_pc_r   <= alu0_pc;
+        alu0_br_r   <= alu0_iss_valid && (alu0_op >= 5'h08 && alu0_op <= 5'h0e);
+        alu0_taken_r<= (alu0_next_pc != alu0_pc + 4);
+
+        alu1_v_r    <= alu1_iss_valid;
+        alu1_res_r  <= alu1_reg_wr ? alu1_result : alu1_next_pc;
+        alu1_dest_r <= alu1_dest;
+        alu1_rob_r  <= alu1_rob;
+        alu1_mis_r  <= alu1_iss_valid &&
+                       (alu1_op >= 5'h08 && alu1_op <= 5'h0e) &&
+                       (alu1_next_pc != alu1_pc + 4);
+        alu1_apc_r  <= alu1_next_pc;
+        alu1_pc_r   <= alu1_pc;
+        alu1_br_r   <= alu1_iss_valid && (alu1_op >= 5'h08 && alu1_op <= 5'h0e);
+        alu1_taken_r<= (alu1_next_pc != alu1_pc + 4);
     end
 end
 
 assign core_mem_rd_addr =
-    (alu0_iss_valid && alu0_mem_rd) ? alu0_mem_addr : mem_rd_addr;
+    (alu0_iss_valid && alu0_mem_rd) ? alu0_mem_addr :
+    (alu1_iss_valid && alu1_mem_rd) ? alu1_mem_addr : mem_rd_addr;
 assign core_mem_wr_en =
-    (alu0_iss_valid && alu0_mem_wr) ? 1'b1 : mem_wr_en;
+    (alu0_iss_valid && alu0_mem_wr) ? 1'b1 :
+    (alu1_iss_valid && alu1_mem_wr) ? 1'b1 : mem_wr_en;
 assign core_mem_wr_addr =
-    (alu0_iss_valid && alu0_mem_wr) ? alu0_mem_addr : mem_wr_addr;
+    (alu0_iss_valid && alu0_mem_wr) ? alu0_mem_addr :
+    (alu1_iss_valid && alu1_mem_wr) ? alu1_mem_addr : mem_wr_addr;
 assign core_mem_wr_data =
-    (alu0_iss_valid && alu0_mem_wr) ? alu0_mem_wdata : mem_wr_data;
+    (alu0_iss_valid && alu0_mem_wr) ? alu0_mem_wdata :
+    (alu1_iss_valid && alu1_mem_wr) ? alu1_mem_wdata : mem_wr_data;
 
 // ---------------------------------------------------------------------------
 // FPU instances
