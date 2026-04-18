@@ -53,8 +53,6 @@ module fetch (
                     pred_tgt = btb_tgt[base_pc[5:2]];
                     if (pred_tgt == base_pc + 64'd4)
                         slot0_kills_slot1 = 1'b0;
-                    else if (btb_ctr[base_pc[5:2]][1])
-                        slot0_kills_slot1 = 1'b1;
                     else
                         slot0_kills_slot1 = 1'b1;
                 end else begin

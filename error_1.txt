@@ -1,27 +1,26 @@
-[generated/benchmarks]         Out-of-order window performance scoring complete
+[generated/benchmarks]         Branch performance scoring complete
 Comparison mode: cycles only
-Zero-credit reference: opt_basic_pipe
-Full-credit reference: opt_none
+Zero-credit reference: opt_none
+Full-credit reference: opt_branch_pred
 Latency normalization: ALU student=3.0 ref=3.0, FPU student=3.0 ref=3.0
-Out-of-order window performance raw points: 7.92 / 10 (unrounded 7.917)
+Branch performance raw points: 9.47 / 20 (unrounded 9.466)
 Benchmark score curve exponent: 1.00
-Out-of-order window performance scale: 1.0000 (correctness gate: 1.0000^1.00)
-Out-of-order window performance final points: 7.92 / 10 (unrounded after scale 7.917)
+Branch performance scale: 1.0000 (correctness gate: 1.0000^1.00)
+Branch performance final points: 9.47 / 20 (unrounded after scale 9.466)
 Test                  Correct   Cycles    Score     Message                           
 --------------------------------------------------------------------------------------
-ooo_window            True      40        0.79      Adjusted cycles 40 (raw 40, offset 0)
+branch_loop           True      27211     0.47      Adjusted cycles 27211 (raw 27211, offset 0)
 
-[generated/benchmarks | ooo_window]:
-<performance>: {'status': 'ok', 'comparison_mode': 'cycles', 'student_cycles': 40, 'adjusted_student_cycles': 40, 'cycle_adjustment': 0, 'raw_zero_credit_cycles': 78, 'raw_full_credit_cycles': 30, 'zero_credit_cycle_adjustment': 0, 'full_credit_cycle_adjustment': 0, 'zero_credit_cycles': 78, 'full_credit_cycles': 30, 'unadjusted_linear_score_ratio': 0.7916666666666666, 'unadjusted_score_ratio': 0.7916666666666666, 'linear_score_ratio': 0.7916666666666666, 'grace_points': 0.0}
-<cycles>: 40
-<adjusted_cycles>: 40
+[generated/benchmarks | branch_loop]:
+<performance>: {'status': 'ok', 'comparison_mode': 'cycles', 'student_cycles': 27211, 'adjusted_student_cycles': 27211, 'cycle_adjustment': 0, 'raw_zero_credit_cycles': 33022, 'raw_full_credit_cycles': 20745, 'zero_credit_cycle_adjustment': 0, 'full_credit_cycle_adjustment': 0, 'zero_credit_cycles': 33022, 'full_credit_cycles': 20745, 'unadjusted_linear_score_ratio': 0.4733241019793109, 'unadjusted_score_ratio': 0.4733241019793109, 'linear_score_ratio': 0.4733241019793109, 'grace_points': 0.0}
+<cycles>: 27211
+<adjusted_cycles>: 27211
 <cycle_adjustment>: 0
 <grace_points>: 0.0
-<message>: Adjusted cycles 40 (raw 40, offset 0)
+<message>: Adjusted cycles 27211 (raw 27211, offset 0)
 <stdout>:
 Header:          40
-Code:         100
+Code:         324
 Data:           0
-Loaded additional state from                                                                                                                                                                                                         ./tests/generated/benchmarks/ooo_window/ooo_window.state
-CYCLES:          40
+CYCLES:       27211
 <stderr>:
