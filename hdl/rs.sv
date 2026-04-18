@@ -5,6 +5,7 @@ module rs #(
     input  reset,
     input  wire flush,  // squash all entries with rob_idx > flush_rob_idx
     input  wire [3:0] flush_rob_idx,
+    input  wire [3:0] rob_head_idx,
 
     // Dispatch port 0
     input  wire        disp0_en,
@@ -79,17 +80,24 @@ module rs #(
     reg        rd_rdy  [0:DEPTH-1];  // 3rd source ready (1 for non-brgt)
 
     integer i;
+    function [3:0] rob_age;
+        input [3:0] idx;
+        input [3:0] head_idx;
+        begin
+            rob_age = idx - head_idx;
+        end
+    endfunction
 
     reg [3:0] free_count;
     reg [2:0] free0, free1;
     reg       fnd0, fnd1;
     reg [2:0]  sel;
     reg        sel_found;
-    reg [3:0]  sel_rob;
+    reg [3:0]  sel_age;
     always @(*) begin
         free_count = 0;
         free0 = 0; free1 = 0; fnd0 = 0; fnd1 = 0;
-        sel = 0; sel_found = 0; sel_rob = 4'hF;
+        sel = 0; sel_found = 0; sel_age = 4'hF;
         for (i = 0; i < DEPTH; i = i + 1) begin
             if (!v[i]) begin
                 free_count = free_count + 1;
@@ -97,8 +105,10 @@ module rs #(
                 else if (!fnd1) begin free1 = i[2:0]; fnd1 = 1; end
             end
             if (v[i] && s_rdy[i] && t_rdy[i] && rd_rdy[i]) begin
-                if (!sel_found || rob_idx[i] < sel_rob) begin
-                    sel = i[2:0]; sel_rob = rob_idx[i]; sel_found = 1;
+                if (!sel_found || rob_age(rob_idx[i], rob_head_idx) < sel_age) begin
+                    sel = i[2:0];
+                    sel_age = rob_age(rob_idx[i], rob_head_idx);
+                    sel_found = 1;
                 end
             end
         end

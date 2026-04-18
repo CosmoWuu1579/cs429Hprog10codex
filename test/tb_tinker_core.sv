@@ -148,6 +148,23 @@ module tb_tinker_core;
 
         clear_mem();
         clear_regs();
+        write_instr(64'h2000, 32'h9804_0008);
+        write_instr(64'h2004, enc_halt());
+        boot_core();
+        dut.reg_file.registers[2] = 64'd71;
+        wait_for_halt(timeout);
+        @(posedge clk);
+        if (timeout >= 500 || {dut.memory.bytes[64'd15], dut.memory.bytes[64'd14],
+                     dut.memory.bytes[64'd13], dut.memory.bytes[64'd12],
+                     dut.memory.bytes[64'd11], dut.memory.bytes[64'd10],
+                     dut.memory.bytes[64'd9], dut.memory.bytes[64'd8]}
+                    !== 64'd71) begin
+            $display("FAIL test5_store_offset_halt");
+            failures = failures + 1;
+        end
+
+        clear_mem();
+        clear_regs();
         write_instr(64'h2000, encL(5'h19, 5'd0, 12'd1));
         write_instr(64'h2004, encL(5'h19, 5'd1, 12'd1));
         write_instr(64'h2008, encL(5'h19, 5'd2, 12'd1));
@@ -164,7 +181,47 @@ module tb_tinker_core;
         boot_core();
         wait_for_halt(timeout);
         if (timeout >= 500 || dut.reg_file.registers[11] !== 64'd1) begin
-            $display("FAIL test5_rename_pressure: timeout=%0d r11=%0d", timeout, dut.reg_file.registers[11]);
+            $display("FAIL test6_rename_pressure: timeout=%0d r11=%0d", timeout, dut.reg_file.registers[11]);
+            failures = failures + 1;
+        end
+
+        clear_mem();
+        clear_regs();
+        write_instr(64'h2000, encL(5'h19, 5'd0, 12'd1));
+        write_instr(64'h2004, encL(5'h19, 5'd1, 12'd1));
+        write_instr(64'h2008, encL(5'h19, 5'd2, 12'd1));
+        write_instr(64'h200C, encL(5'h19, 5'd3, 12'd1));
+        write_instr(64'h2010, encL(5'h19, 5'd4, 12'd1));
+        write_instr(64'h2014, encL(5'h19, 5'd5, 12'd1));
+        write_instr(64'h2018, encL(5'h19, 5'd6, 12'd1));
+        write_instr(64'h201C, encL(5'h19, 5'd7, 12'd1));
+        write_instr(64'h2020, encL(5'h19, 5'd8, 12'd1));
+        write_instr(64'h2024, encL(5'h19, 5'd9, 12'd1));
+        write_instr(64'h2028, encL(5'h19, 5'd10, 12'd1));
+        write_instr(64'h202C, encL(5'h19, 5'd11, 12'd1));
+        write_instr(64'h2030, encL(5'h19, 5'd12, 12'd1));
+        write_instr(64'h2034, encL(5'h19, 5'd13, 12'd1));
+        write_instr(64'h2038, encL(5'h19, 5'd14, 12'd1));
+        write_instr(64'h203C, encL(5'h19, 5'd15, 12'd1));
+        write_instr(64'h2040, encL(5'h19, 5'd16, 12'd1));
+        write_instr(64'h2044, encL(5'h19, 5'd17, 12'd1));
+        write_instr(64'h2048, encL(5'h19, 5'd18, 12'd1));
+        write_instr(64'h204C, encL(5'h19, 5'd19, 12'd1));
+        write_instr(64'h2050, encL(5'h19, 5'd20, 12'd1));
+        write_instr(64'h2054, enc_halt());
+        boot_core();
+        wait_for_halt(timeout);
+        if (timeout >= 500 ||
+            dut.reg_file.registers[10] !== 64'd1 ||
+            dut.reg_file.registers[11] !== 64'd1 ||
+            dut.reg_file.registers[12] !== 64'd1 ||
+            dut.reg_file.registers[16] !== 64'd1 ||
+            dut.reg_file.registers[17] !== 64'd1 ||
+            dut.reg_file.registers[20] !== 64'd1) begin
+            $display("FAIL test7_rob_wrap_issue: timeout=%0d r10=%0d r11=%0d r12=%0d r16=%0d r17=%0d r20=%0d",
+                     timeout, dut.reg_file.registers[10], dut.reg_file.registers[11],
+                     dut.reg_file.registers[12], dut.reg_file.registers[16],
+                     dut.reg_file.registers[17], dut.reg_file.registers[20]);
             failures = failures + 1;
         end
 

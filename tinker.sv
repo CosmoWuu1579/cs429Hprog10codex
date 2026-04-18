@@ -151,6 +151,7 @@ wire        free_avail, free_one_avail;
 // ROB allocation indices
 // ---------------------------------------------------------------------------
 wire [3:0]  rob0_idx, rob1_idx;
+wire [3:0]  rob_head_idx;
 wire        rob_full, rob_one_avail;
 
 // ---------------------------------------------------------------------------
@@ -511,6 +512,7 @@ rat rat_inst (
 rs #(.DEPTH(8)) alu_rs (
     .clk(clk), .reset(reset),
     .flush(flush_sig), .flush_rob_idx(flush_rob_idx),
+    .rob_head_idx(rob_head_idx),
     .disp0_en(dispatch0_en && dec0_uses_alu_rs),
     .disp0_op(dec0_op), .disp0_dest_preg(r0_new_preg), .disp0_rob_idx(rob0_idx),
     .disp0_s_preg(r0_s_preg), .disp0_s_val(r0_s_val), .disp0_s_rdy(r0_s_rdy),
@@ -549,6 +551,7 @@ assign alu1_iss_L = 12'b0; assign alu1_pc = 64'b0; assign alu1_rdv = 64'b0;
 rs #(.DEPTH(8)) fpu_rs (
     .clk(clk), .reset(reset),
     .flush(flush_sig), .flush_rob_idx(flush_rob_idx),
+    .rob_head_idx(rob_head_idx),
     .disp0_en(dispatch0_en && dec0_uses_fpu_rs),
     .disp0_op(dec0_op), .disp0_dest_preg(r0_new_preg), .disp0_rob_idx(rob0_idx),
     .disp0_s_preg(r0_s_preg), .disp0_s_val(r0_s_val), .disp0_s_rdy(r0_s_rdy),
@@ -690,7 +693,7 @@ rob rob_inst (
     .alloc1_is_branch(dec1_is_branch), .alloc1_is_halt(dec1_is_halt),
     .alloc1_pred_pc(f_pred_pc), .alloc1_rat_snap(rat_snap),
     .alloc1_idx(rob1_idx),
-    .rob_full(rob_full), .rob_one_avail(rob_one_avail),
+    .rob_full(rob_full), .rob_one_avail(rob_one_avail), .rob_head_idx(rob_head_idx),
     .cdb0_valid(cdb0_v), .cdb0_rob_idx(cdb0_rob),
     .cdb0_result(cdb0_data), .cdb0_mis_pred(cdb0_mis), .cdb0_actual_pc(cdb0_apc),
     .cdb1_valid(cdb1_v), .cdb1_rob_idx(cdb1_rob),

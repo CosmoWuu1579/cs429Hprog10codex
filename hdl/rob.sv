@@ -31,6 +31,7 @@ module rob (
 
     output wire        rob_full,
     output wire        rob_one_avail,
+    output wire [3:0]  rob_head_idx,
 
     // CDB write-back: mark entries complete
     input  wire        cdb0_valid,
@@ -98,8 +99,27 @@ module rob (
     assign alloc1_idx = tail + 1'b1;
     assign rob_full = (count >= ROB_SIZE - 1);
     assign rob_one_avail = (count < ROB_SIZE);
+    assign rob_head_idx = head;
 
     integer i;
+
+    always @(*) begin
+        commit0_en = can_commit0;
+        commit0_areg = r_dareg[head];
+        commit0_preg = r_dpreg[head];
+        commit0_old_preg = r_old_preg[head];
+        commit0_result = r_result[head];
+        commit0_reg_write = r_reg_write[head];
+        commit0_is_store = r_is_store[head];
+
+        commit1_en = can_commit1;
+        commit1_areg = r_dareg[head1];
+        commit1_preg = r_dpreg[head1];
+        commit1_old_preg = r_old_preg[head1];
+        commit1_result = r_result[head1];
+        commit1_reg_write = r_reg_write[head1];
+        commit1_is_store = r_is_store[head1];
+    end
 
     always @(posedge clk) begin
         reg [1:0] commit_cnt;
@@ -112,15 +132,12 @@ module rob (
                 r_valid[i] <= 0; r_ready[i] <= 0;
             end
             head <= 0; tail <= 0; count <= 0;
-            commit0_en <= 0; commit1_en <= 0;
             flush <= 0; hlt <= 0;
             flush_pc <= 0;
             flush_rat_snap <= 0;
             flush_rob_idx <= 0;
         end else begin
             flush      <= 0;
-            commit0_en <= 0;
-            commit1_en <= 0;
             hlt        <= 0;
             commit_cnt  = 0;
             alloc_cnt   = 0;
@@ -141,13 +158,6 @@ module rob (
             end
 
             if (can_commit0) begin
-                commit0_en <= 1;
-                commit0_areg <= r_dareg[head];
-                commit0_preg <= r_dpreg[head];
-                commit0_old_preg <= r_old_preg[head];
-                commit0_result <= r_result[head];
-                commit0_reg_write <= r_reg_write[head];
-                commit0_is_store <= r_is_store[head];
                 r_valid[head]    <= 0;
                 commit_cnt        = 1;
                 next_head         = head + 1'b1;
@@ -162,13 +172,6 @@ module rob (
                     do_flush       = 1;
                 end else begin
                     if (can_commit1) begin
-                        commit1_en <= 1;
-                        commit1_areg <= r_dareg[head1];
-                        commit1_preg <= r_dpreg[head1];
-                        commit1_old_preg <= r_old_preg[head1];
-                        commit1_result <= r_result[head1];
-                        commit1_reg_write <= r_reg_write[head1];
-                        commit1_is_store <= r_is_store[head1];
                         r_valid[head1]  <= 0;
                         commit_cnt        = 2;
                         next_head         = head + 2'd2;

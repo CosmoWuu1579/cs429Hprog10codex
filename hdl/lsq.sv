@@ -75,6 +75,14 @@ module lsq (
     integer i;
     reg [63:0] fwd_data;
     reg        fwd_found;
+    reg        store_commit_fire;
+
+    always @(*) begin
+        store_commit_fire = st_commit_en && sq_v[sq_head] && sq_drdy[sq_head];
+        mem_wr_en = store_commit_fire;
+        mem_wr_addr = sq_addr[sq_head];
+        mem_wr_data = sq_data[sq_head];
+    end
 
     always @(*) begin
         fwd_data = 64'd0;
@@ -98,9 +106,6 @@ module lsq (
             ld_cdb_preg  <= 0;
             ld_cdb_rob   <= 0;
             mem_rd_addr  <= 0;
-            mem_wr_en    <= 0;
-            mem_wr_addr  <= 0;
-            mem_wr_data  <= 0;
         end else begin
             for (i = 0; i < SQ_DEPTH; i = i + 1) begin
                 if (sq_v[i] && !sq_drdy[i]) begin
@@ -157,11 +162,7 @@ module lsq (
                 lq_count <= lq_count - 1;
             end
 
-            mem_wr_en <= 0;
-            if (st_commit_en && sq_v[sq_head] && sq_drdy[sq_head]) begin
-                mem_wr_en   <= 1;
-                mem_wr_addr <= sq_addr[sq_head];
-                mem_wr_data <= sq_data[sq_head];
+            if (store_commit_fire) begin
                 sq_v[sq_head] <= 0;
                 sq_head  <= sq_head + 1;
                 sq_count <= sq_count - 1;
