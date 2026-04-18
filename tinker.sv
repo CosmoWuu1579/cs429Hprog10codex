@@ -35,6 +35,7 @@ localparam FU_STORE = 2'b11;
 wire        f_valid0, f_valid1;
 wire [31:0] f_instr0, f_instr1;
 wire [63:0] f_pc0,    f_pc1;
+wire [63:0] f_pred_pc0, f_pred_pc1;
 wire [63:0] f_pred_pc;
 wire [63:0] fetch_pc0_addr, fetch_pc1_addr;
 wire [31:0] mem_instr0, mem_instr1;
@@ -367,6 +368,7 @@ fetch fetch_unit (
     .fetch_pc0(fetch_pc0_addr), .fetch_pc1(fetch_pc1_addr),
     .out_valid0(f_valid0), .out_instr0(f_instr0), .out_pc0(f_pc0),
     .out_valid1(f_valid1), .out_instr1(f_instr1), .out_pc1(f_pc1),
+    .out_pred_pc0(f_pred_pc0), .out_pred_pc1(f_pred_pc1),
     .out_pred_pc(f_pred_pc)
 );
 
@@ -532,7 +534,7 @@ rs #(.DEPTH(8)) alu_rs (
     .disp0_t_preg(r0_t_preg), .disp0_t_val(r0_t_val), .disp0_t_rdy(r0_t_rdy), .disp0_t_block_cdb(1'b0),
     .disp0_L(dec0_L), .disp0_pc(f_pc0),
     .disp0_ft_pc(f_valid1 ? (f_pc0 + 64'd8) : (f_pc0 + 64'd4)),
-    .disp0_pred_pc(f_pred_pc),
+    .disp0_pred_pc(f_pred_pc0),
     .disp0_rd_preg(r0_old_preg), .disp0_rd_val(r0_old_val),
     .disp0_rd_rdy(is_brgt0 ? r0_old_rdy : 1'b1), .disp0_rd_block_cdb(1'b0),
     .disp1_en(dispatch1_en && dec1_uses_alu_rs),
@@ -541,7 +543,7 @@ rs #(.DEPTH(8)) alu_rs (
     .disp1_t_preg(r1_t_preg), .disp1_t_val(r1_t_val), .disp1_t_rdy(r1_t_rdy), .disp1_t_block_cdb(r1_t_dep),
     .disp1_L(dec1_L), .disp1_pc(f_pc1),
     .disp1_ft_pc(f_pc1 + 64'd4),
-    .disp1_pred_pc(f_pred_pc),
+    .disp1_pred_pc(f_pred_pc1),
     .disp1_rd_preg(r1_old_preg), .disp1_rd_val(r1_old_val),
     .disp1_rd_rdy(is_brgt1 ? r1_old_rdy : 1'b1), .disp1_rd_block_cdb(r1_old_dep),
     .cdb0_valid(cdb0_v), .cdb0_rw(cdb0_rw), .cdb0_preg(cdb0_preg), .cdb0_data(cdb0_data),
@@ -747,14 +749,14 @@ rob rob_inst (
     .alloc0_dest_preg(r0_new_preg), .alloc0_old_preg(dec0_reg_wr ? r0_old_preg : 6'd0),
     .alloc0_reg_write(dec0_reg_wr), .alloc0_is_store(dec0_is_store),
     .alloc0_is_branch(dec0_is_branch), .alloc0_is_halt(dec0_is_halt),
-    .alloc0_pred_pc(f_pred_pc), .alloc0_rat_snap(rat_snap),
+    .alloc0_pred_pc(f_pred_pc0), .alloc0_rat_snap(rat_snap),
     .alloc0_idx(rob0_idx),
     .alloc1_en(dispatch1_en),
     .alloc1_fu_type(dec1_fu), .alloc1_dest_areg(dec1_d),
     .alloc1_dest_preg(r1_new_preg), .alloc1_old_preg(dec1_reg_wr ? r1_old_preg : 6'd0),
     .alloc1_reg_write(dec1_reg_wr), .alloc1_is_store(dec1_is_store),
     .alloc1_is_branch(dec1_is_branch), .alloc1_is_halt(dec1_is_halt),
-    .alloc1_pred_pc(f_pred_pc), .alloc1_rat_snap(rat_snap),
+    .alloc1_pred_pc(f_pred_pc1), .alloc1_rat_snap(rat_snap),
     .alloc1_idx(rob1_idx),
     .rob_full(rob_full), .rob_one_avail(rob_one_avail), .rob_head_idx(rob_head_idx),
     .cdb0_valid(cdb0_v), .cdb0_rob_idx(cdb0_rob),

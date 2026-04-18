@@ -145,26 +145,20 @@ module rs #(
         end
     endfunction
 
-    reg [3:0] free_count;
-    reg [2:0] free0, free1;
-    reg       fnd0, fnd1;
     reg [2:0]  sel;
     reg        sel_found;
     reg [3:0]  sel_age;
     reg [2:0]  sel2;
     reg        sel2_found;
     reg [3:0]  sel2_age;
+    reg [3:0] free_count;
+    reg [2:0] free0, free1;
+    reg       fnd0, fnd1;
+    reg       slot_free;
     always @(*) begin
-        free_count = 0;
-        free0 = 0; free1 = 0; fnd0 = 0; fnd1 = 0;
         sel = 0; sel_found = 0; sel_age = 4'hF;
         sel2 = 0; sel2_found = 0; sel2_age = 4'hF;
         for (i = 0; i < DEPTH; i = i + 1) begin
-            if (!v[i]) begin
-                free_count = free_count + 1;
-                if (!fnd0) begin free0 = i[2:0]; fnd0 = 1; end
-                else if (!fnd1) begin free1 = i[2:0]; fnd1 = 1; end
-            end
             if (v[i] &&
                 operand_ready_now(s_rdy[i], s_preg[i]) &&
                 operand_ready_now(t_rdy[i], t_preg[i]) &&
@@ -186,6 +180,23 @@ module rs #(
                     sel2 = i[2:0];
                     sel2_age = rob_age(rob_idx[i], rob_head_idx);
                     sel2_found = 1;
+                end
+            end
+        end
+        free_count = 0;
+        free0 = 0; free1 = 0; fnd0 = 0; fnd1 = 0;
+        for (i = 0; i < DEPTH; i = i + 1) begin
+            slot_free = !v[i] ||
+                        (sel_found && (i[2:0] == sel)) ||
+                        (sel2_found && (i[2:0] == sel2));
+            if (slot_free) begin
+                free_count = free_count + 1;
+                if (!fnd0) begin
+                    free0 = i[2:0];
+                    fnd0 = 1;
+                end else if (!fnd1) begin
+                    free1 = i[2:0];
+                    fnd1 = 1;
                 end
             end
         end

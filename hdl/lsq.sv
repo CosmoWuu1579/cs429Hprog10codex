@@ -82,11 +82,12 @@ module lsq (
     reg        store_commit_fire;
     reg        load_issue_fire;
     reg [63:0] load_issue_data;
+    reg [2:0]  eff_cq_count;
 
-    assign ld_full = (lq_count >= LQ_DEPTH - 1) || (cq_count >= CQ_DEPTH - 1);
+    assign ld_full = (lq_count >= LQ_DEPTH - 1) || (eff_cq_count >= CQ_DEPTH - 1);
     assign st_full = (sq_count >= SQ_DEPTH - 1);
-    assign ld_one_avail = (lq_count < LQ_DEPTH) && (cq_count < CQ_DEPTH);
-    assign ld_two_avail = (lq_count <= LQ_DEPTH - 2) && (cq_count <= CQ_DEPTH - 2);
+    assign ld_one_avail = (lq_count < LQ_DEPTH) && (eff_cq_count < CQ_DEPTH);
+    assign ld_two_avail = (lq_count <= LQ_DEPTH - 2) && (eff_cq_count <= CQ_DEPTH - 2);
     assign st_one_avail = (sq_count < SQ_DEPTH);
 
     always @(*) begin
@@ -112,6 +113,7 @@ module lsq (
     end
 
     always @(*) begin
+        eff_cq_count = cq_count - ((ld_cdb_valid && ld_cdb_grant) ? 3'd1 : 3'd0);
         load_issue_fire = lq_v[lq_head] && (cq_count < CQ_DEPTH);
         load_issue_data = fwd_found ? fwd_data : mem_rd_data;
     end

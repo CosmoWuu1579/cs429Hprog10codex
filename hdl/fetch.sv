@@ -25,6 +25,8 @@ module fetch (
     output reg         out_valid1,
     output reg  [31:0] out_instr1,
     output reg  [63:0] out_pc1,
+    output reg  [63:0] out_pred_pc0,
+    output reg  [63:0] out_pred_pc1,
     output reg  [63:0] out_pred_pc
 );
     reg [63:0] pc;
@@ -131,6 +133,8 @@ module fetch (
             out_instr1 <= 32'b0;
             out_pc0 <= 64'b0;
             out_pc1 <= 64'b0;
+            out_pred_pc0 <= 64'h2008;
+            out_pred_pc1 <= 64'h2008;
             out_pred_pc <= 64'h2008;
             for (i = 0; i < 16; i = i + 1) begin
                 btb_valid[i] <= 0;
@@ -177,6 +181,8 @@ module fetch (
                 out_instr1 <= 32'b0;
                 out_pc0 <= 64'b0;
                 out_pc1 <= 64'b0;
+                out_pred_pc0 <= flush_pc + 8;
+                out_pred_pc1 <= flush_pc + 8;
                 out_pred_pc <= flush_pc + 8;
             end else if (consume_slot0_only) begin
                 pc <= out_pc1 + 64'd4;
@@ -186,11 +192,15 @@ module fetch (
                 out_valid1 <= 1'b0;
                 out_instr1 <= 32'b0;
                 out_pc1 <= out_pc1 + 64'd4;
+                out_pred_pc0 <= predict_next_pc(out_pc1, out_instr1, 32'b0);
+                out_pred_pc1 <= predict_next_pc(out_pc1 + 64'd4, 32'b0, 32'b0);
                 out_pred_pc <= predict_next_pc(out_pc1, out_instr1, 32'b0);
             end else if (stall) begin
                 if (consume) begin
                     out_valid0 <= 1'b0;
                     out_valid1 <= 1'b0;
+                    out_pred_pc0 <= out_pred_pc0;
+                    out_pred_pc1 <= out_pred_pc1;
                 end else begin
                     out_valid0 <= out_valid0;
                     out_valid1 <= out_valid1 && !slot0_kills_slot1(out_pc0, out_instr0);
@@ -198,6 +208,8 @@ module fetch (
                     out_instr1 <= out_instr1;
                     out_pc0 <= out_pc0;
                     out_pc1 <= out_pc1;
+                    out_pred_pc0 <= predict_next_pc(out_pc0, out_instr0, out_instr1);
+                    out_pred_pc1 <= predict_next_pc(out_pc1, out_instr1, 32'b0);
                     out_pred_pc <= predict_next_pc(out_pc0, out_instr0, out_instr1);
                 end
             end else begin
@@ -207,6 +219,8 @@ module fetch (
                 out_instr1 <= mem_instr1;
                 out_pc0 <= pc;
                 out_pc1 <= pc + 4;
+                out_pred_pc0 <= predict_next_pc(pc, mem_instr0, mem_instr1);
+                out_pred_pc1 <= predict_next_pc(pc + 64'd4, mem_instr1, 32'b0);
                 out_pred_pc <= predict_next_pc(pc, mem_instr0, mem_instr1);
                 pc <= predict_next_pc(pc, mem_instr0, mem_instr1);
             end

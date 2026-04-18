@@ -28,6 +28,8 @@ module tb_fetch;
     wire out_valid1;
     wire [31:0] out_instr1;
     wire [63:0] out_pc1;
+    wire [63:0] out_pred_pc0;
+    wire [63:0] out_pred_pc1;
     wire [63:0] out_pred_pc;
 
     integer failures;
@@ -58,6 +60,8 @@ module tb_fetch;
         .out_valid1(out_valid1),
         .out_instr1(out_instr1),
         .out_pc1(out_pc1),
+        .out_pred_pc0(out_pred_pc0),
+        .out_pred_pc1(out_pred_pc1),
         .out_pred_pc(out_pred_pc)
     );
 
