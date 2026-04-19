@@ -32,10 +32,10 @@ module lsq (
     output reg  [63:0] mem_rd_addr,
     input  wire [63:0] mem_rd_data,
     input  wire        ld_cdb_grant,
-    output reg         ld_cdb_valid,
-    output reg  [63:0] ld_cdb_data,
-    output reg  [5:0]  ld_cdb_preg,
-    output reg  [3:0]  ld_cdb_rob,
+    output wire        ld_cdb_valid,
+    output wire [63:0] ld_cdb_data,
+    output wire [5:0]  ld_cdb_preg,
+    output wire [3:0]  ld_cdb_rob,
 
     input  wire        st_commit_en,
     input  wire [3:0]  st_commit_rob,
@@ -89,6 +89,10 @@ module lsq (
     assign ld_one_avail = (lq_count < LQ_DEPTH) && (eff_cq_count < CQ_DEPTH);
     assign ld_two_avail = (lq_count <= LQ_DEPTH - 2) && (eff_cq_count <= CQ_DEPTH - 2);
     assign st_one_avail = (sq_count < SQ_DEPTH);
+    assign ld_cdb_valid = cq_v[cq_head];
+    assign ld_cdb_data  = cq_data[cq_head];
+    assign ld_cdb_preg  = cq_preg[cq_head];
+    assign ld_cdb_rob   = cq_rob[cq_head];
 
     always @(*) begin
         store_commit_fire = st_commit_en && sq_v[sq_head] && sq_drdy[sq_head];
@@ -141,10 +145,6 @@ module lsq (
             sq_head <= 0;
             sq_tail <= 0;
             sq_count <= 0;
-            ld_cdb_valid <= 0;
-            ld_cdb_data <= 0;
-            ld_cdb_preg <= 0;
-            ld_cdb_rob <= 0;
         end else begin
             lq_push = 0;
             lq_pop = 0;
@@ -206,20 +206,10 @@ module lsq (
                 cq_push = 1;
             end
 
-            if (ld_cdb_valid) begin
-                if (ld_cdb_grant) begin
-                    ld_cdb_valid <= 0;
-                    if (cq_v[cq_head]) begin
-                        cq_v[cq_head] <= 0;
-                        cq_head <= cq_head + 1'b1;
-                        cq_pop = 1;
-                    end
-                end
-            end else if (cq_v[cq_head]) begin
-                ld_cdb_valid <= 1;
-                ld_cdb_data <= cq_data[cq_head];
-                ld_cdb_preg <= cq_preg[cq_head];
-                ld_cdb_rob <= cq_rob[cq_head];
+            if (ld_cdb_valid && ld_cdb_grant) begin
+                cq_v[cq_head] <= 0;
+                cq_head <= cq_head + 1'b1;
+                cq_pop = 1;
             end
 
             if (store_commit_fire) begin

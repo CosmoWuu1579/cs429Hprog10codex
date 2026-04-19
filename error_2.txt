@@ -1,27 +1,26 @@
-[generated/benchmarks]         Branch performance scoring complete
+[generated/benchmarks]         Memory performance scoring complete
 Comparison mode: cycles only
-Zero-credit reference: opt_none
-Full-credit reference: opt_branch_pred
+Zero-credit reference: opt_branch_pred
+Full-credit reference: opt_branch_pred_lsq
 Latency normalization: ALU student=3.0 ref=3.0, FPU student=3.0 ref=3.0
-Branch performance raw points: 0.00 / 20 (unrounded 0.000)
+Memory performance raw points: 2.94 / 10 (unrounded 2.945)
 Benchmark score curve exponent: 1.00
-Branch performance scale: 1.0000 (correctness gate: 1.0000^1.00)
-Branch performance final points: 0.00 / 20 (unrounded after scale 0.000)
+Memory performance scale: 1.0000 (correctness gate: 1.0000^1.00)
+Memory performance final points: 2.94 / 10 (unrounded after scale 2.945)
 Test                  Correct   Cycles    Score     Message                           
 --------------------------------------------------------------------------------------
-branch_loop           False     -1        0.00      Timeout after 20 sec              
+memory_stream         True      4108      0.29      Adjusted cycles 4108 (raw 4108, offset 0)
 
-[generated/benchmarks | branch_loop]:
-<performance>: {'status': 'correctness_failed'}
-<cycles>: -1
-<adjusted_cycles>: -1
+[generated/benchmarks | memory_stream]:
+<performance>: {'status': 'ok', 'comparison_mode': 'cycles', 'student_cycles': 4108, 'adjusted_student_cycles': 4108, 'cycle_adjustment': 0, 'raw_zero_credit_cycles': 4669, 'raw_full_credit_cycles': 2764, 'zero_credit_cycle_adjustment': 0, 'full_credit_cycle_adjustment': 0, 'zero_credit_cycles': 4669, 'full_credit_cycles': 2764, 'unadjusted_linear_score_ratio': 0.29448818897637796, 'unadjusted_score_ratio': 0.29448818897637796, 'linear_score_ratio': 0.29448818897637796, 'grace_points': 0.0}
+<cycles>: 4108
+<adjusted_cycles>: 4108
 <cycle_adjustment>: 0
 <grace_points>: 0.0
-<message>: Timeout after 20 sec
+<message>: Adjusted cycles 4108 (raw 4108, offset 0)
 <stdout>:
-stdout not found
+Header:          40
+Code:         176
+Data:         128
+CYCLES:        4108
 <stderr>:
-stderr not found
-<expected_state>: None
-<student_state>: None
-

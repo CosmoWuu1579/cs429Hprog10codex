@@ -1,253 +1,27 @@
-[generated/benchmarks]         Out-of-order window performance scoring complete
 Comparison mode: cycles only
-Zero-credit reference: opt_basic_pipe
-Full-credit reference: opt_none
+Zero-credit reference: opt_none
+Full-credit reference: opt_multi_issue
 Latency normalization: ALU student=3.0 ref=3.0, FPU student=3.0 ref=3.0
-Out-of-order window performance raw points: 0.00 / 10 (unrounded 0.000)
-Benchmark score curve exponent: 1.00
-Out-of-order window performance scale: 1.0000 (correctness gate: 1.0000^1.00)
-Out-of-order window performance final points: 0.00 / 10 (unrounded after scale 0.000)
+Dual-issue performance raw points: 9.61 / 10 (unrounded 9.614)
+Benchmark score curve exponent: 0.50
+Dual-issue performance scale: 1.0000 (correctness gate: 1.0000^1.00)
+Dual-issue performance final points: 9.61 / 10 (unrounded after scale 9.614)
 Test                  Correct   Cycles    Score     Message                           
 --------------------------------------------------------------------------------------
-ooo_window            False     200000    0.00      Final state does not match expected state
+multi_issue           True      456       0.96      Adjusted cycles 456 (raw 456, offset 0)
 
-[generated/benchmarks | ooo_window]:
-<performance>: {'status': 'correctness_failed'}
-<cycles>: 200000
-<adjusted_cycles>: 200000
+[generated/benchmarks | multi_issue]:
+<performance>: {'status': 'ok', 'comparison_mode': 'cycles', 'student_cycles': 456, 'adjusted_student_cycles': 456, 'cycle_adjustment': 0, 'raw_zero_credit_cycles': 566, 'raw_full_credit_cycles': 447, 'zero_credit_cycle_adjustment': 0, 'full_credit_cycle_adjustment': 0, 'zero_credit_cycles': 566, 'full_credit_cycles': 447, 'unadjusted_linear_score_ratio': 0.9243697478991597, 'unadjusted_score_ratio': 0.9614414947874674, 'linear_score_ratio': 0.9243697478991597, 'grace_points': 0.0}
+<cycles>: 456
+<adjusted_cycles>: 456
 <cycle_adjustment>: 0
 <grace_points>: 0.0
-<message>: Final state does not match expected state
+<message>: Adjusted cycles 456 (raw 456, offset 0)
 <stdout>:
 Header:          40
-Code:         100
+Code:        1284
 Data:           0
-Loaded additional state from                                                                                                                                                                                                         ./tests/generated/benchmarks/ooo_window/ooo_window.state
-Simulation took too many cycles
-CYCLES:      200000
+Loaded additional state from                                                                                                                                                                                                       ./tests/generated/benchmarks/multi_issue/multi_issue.state
+CYCLES:         456
 <stderr>:
-
-<expected_state>: 
-r           0                  256
-r           1                    0
-r           2                    0
-r           3                    0
-r           4                    1
-r           5                   28
-r           6                    2
-r           7 18446744073709551610
-r           8                    3
-r           9                   26
-r          10                    4
-r          11                   27
-r          12                    5
-r          13                    1
-r          14                    6
-r          15                   28
-r          16                    7
-r          17 18446744073709551610
-r          18                    8
-r          19                   26
-r          20                    9
-r          21                   27
-r          22                   10
-r          23                    1
-r          24                   11
-r          25                   28
-r          26                   12
-r          27 18446744073709551610
-r          28                   11
-r          29                   17
-r          30                    0
-r          31               524288
-m         256   1
-m         264   2
-m         272   3
-m         280   4
-m         288   5
-m         296   6
-m         304   7
-m         312   8
-m         320   9
-m         328  10
-m         336  11
-m         344  12
-m        8195 129
-m        8197 208
-m        8198 121
-m        8199 193
-m        8200   8
-m        8202 128
-m        8203 129
-m        8205 208
-m        8206 249
-m        8207 209
-m        8208  16
-m        8211 130
-m        8213 208
-m        8214 121
-m        8215  18
-m        8216  24
-m        8218 128
-m        8219 130
-m        8221 208
-m        8222 249
-m        8223  10
-m        8224  32
-m        8227 131
-m        8229 208
-m        8230 121
-m        8231   3
-m        8232  40
-m        8234 128
-m        8235 131
-m        8237 208
-m        8238 249
-m        8239 195
-m        8240  48
-m        8243 132
-m        8245 208
-m        8246 121
-m        8247 212
-m        8248  56
-m        8250 128
-m        8251 132
-m        8253 208
-m        8254 249
-m        8255  20
-m        8256  64
-m        8259 133
-m        8261 208
-m        8262 121
-m        8263  13
-m        8264  72
-m        8266 128
-m        8267 133
-m        8269 208
-m        8270 249
-m        8271   5
-m        8272  80
-m        8275 134
-m        8277 208
-m        8278 121
-m        8279 198
-m        8280  88
-m        8282 128
-m        8283 134
-m        8285 208
-m        8286 249
-m        8287 214
-m        8291 120
-
-<student_state>: 
-r           0                  256
-r           1                    0
-r           2                    0
-r           3                    0
-r           4                    1
-r           5                   28
-r           6                    2
-r           7 18446744073709551610
-r           8                    3
-r           9                   26
-r          10                    4
-r          11                   27
-r          12                    5
-r          13                    1
-r          14                    6
-r          15                   28
-r          16                    7
-r          17 18446744073709551610
-r          18                    8
-r          19                   26
-r          20                    9
-r          21                   27
-r          22                    0
-r          23                    0
-r          24                    0
-r          25                    0
-r          26                    0
-r          27                    0
-r          28                   11
-r          29                   17
-r          30                    0
-r          31               524288
-m         256   1
-m         264   2
-m         272   3
-m         280   4
-m         288   5
-m         296   6
-m         304   7
-m         312   8
-m         320   9
-m         328  10
-m         336  11
-m         344  12
-m        8195 129
-m        8197 208
-m        8198 121
-m        8199 193
-m        8200   8
-m        8202 128
-m        8203 129
-m        8205 208
-m        8206 249
-m        8207 209
-m        8208  16
-m        8211 130
-m        8213 208
-m        8214 121
-m        8215  18
-m        8216  24
-m        8218 128
-m        8219 130
-m        8221 208
-m        8222 249
-m        8223  10
-m        8224  32
-m        8227 131
-m        8229 208
-m        8230 121
-m        8231   3
-m        8232  40
-m        8234 128
-m        8235 131
-m        8237 208
-m        8238 249
-m        8239 195
-m        8240  48
-m        8243 132
-m        8245 208
-m        8246 121
-m        8247 212
-m        8248  56
-m        8250 128
-m        8251 132
-m        8253 208
-m        8254 249
-m        8255  20
-m        8256  64
-m        8259 133
-m        8261 208
-m        8262 121
-m        8263  13
-m        8264  72
-m        8266 128
-m        8267 133
-m        8269 208
-m        8270 249
-m        8271   5
-m        8272  80
-m        8275 134
-m        8277 208
-m        8278 121
-m        8279 198
-m        8280  88
-m        8282 128
-m        8283 134
-m        8285 208
-m        8286 249
-m        8287 214
-m        8291 120
 
