@@ -187,6 +187,68 @@ wire [63:0] alu1_pred_pc;
 // RS issue_L is 12-bit; extend for RS port (stored as rd_val)
 wire [11:0] alu0_iss_L, alu1_iss_L;
 
+wire        dec0_alu_ready_now = dispatch0_en && dec0_uses_alu_rs &&
+                                 r0_s_rdy && r0_t_rdy &&
+                                 (!is_brgt0 || r0_old_rdy);
+wire        dec1_alu_ready_now = dispatch1_en && dec1_uses_alu_rs &&
+                                 r1_s_rdy && r1_t_rdy &&
+                                 (!is_brgt1 || r1_old_rdy);
+
+wire        alu_bypass0_slot0 = !alu0_iss_valid && dec0_alu_ready_now;
+wire        alu_bypass1_slot0 = !alu0_iss_valid && !alu_bypass0_slot0 && dec1_alu_ready_now;
+wire        alu_bypass0_slot1 = !alu1_iss_valid && !alu_bypass0_slot0 && dec0_alu_ready_now;
+wire        alu_bypass1_slot1 = !alu1_iss_valid && !alu_bypass1_slot0 &&
+                                !alu_bypass0_slot1 && dec1_alu_ready_now;
+
+wire        alu_disp0_bypassed = alu_bypass0_slot0 || alu_bypass0_slot1;
+wire        alu_disp1_bypassed = alu_bypass1_slot0 || alu_bypass1_slot1;
+
+wire        alu0_exec_valid = alu0_iss_valid || alu_bypass0_slot0 || alu_bypass1_slot0;
+wire [4:0]  alu0_exec_op = alu0_iss_valid ? alu0_op :
+                           alu_bypass0_slot0 ? dec0_op : dec1_op;
+wire [5:0]  alu0_exec_dest = alu0_iss_valid ? alu0_dest :
+                             alu_bypass0_slot0 ? r0_new_preg : r1_new_preg;
+wire [3:0]  alu0_exec_rob = alu0_iss_valid ? alu0_rob :
+                            alu_bypass0_slot0 ? rob0_idx : rob1_idx;
+wire [63:0] alu0_exec_src1 = alu0_iss_valid ? alu0_src1 :
+                             alu_bypass0_slot0 ? r0_s_val : r1_s_val;
+wire [63:0] alu0_exec_src2 = alu0_iss_valid ? alu0_src2 :
+                             alu_bypass0_slot0 ? r0_t_val : r1_t_val;
+wire [11:0] alu0_exec_L = alu0_iss_valid ? alu0_iss_L :
+                          alu_bypass0_slot0 ? dec0_L : dec1_L;
+wire [63:0] alu0_exec_pc = alu0_iss_valid ? alu0_pc :
+                           alu_bypass0_slot0 ? f_pc0 : f_pc1;
+wire [63:0] alu0_exec_ft_pc = alu0_iss_valid ? alu0_ft_pc :
+                              alu_bypass0_slot0 ? (f_valid1 ? (f_pc0 + 64'd8) : (f_pc0 + 64'd4))
+                                                : (f_pc1 + 64'd4);
+wire [63:0] alu0_exec_pred_pc = alu0_iss_valid ? alu0_pred_pc :
+                                alu_bypass0_slot0 ? f_pred_pc0 : f_pred_pc1;
+wire [63:0] alu0_exec_rdv = alu0_iss_valid ? alu0_rdv :
+                            alu_bypass0_slot0 ? r0_old_val : r1_old_val;
+
+wire        alu1_exec_valid = alu1_iss_valid || alu_bypass0_slot1 || alu_bypass1_slot1;
+wire [4:0]  alu1_exec_op = alu1_iss_valid ? alu1_op :
+                           alu_bypass0_slot1 ? dec0_op : dec1_op;
+wire [5:0]  alu1_exec_dest = alu1_iss_valid ? alu1_dest :
+                             alu_bypass0_slot1 ? r0_new_preg : r1_new_preg;
+wire [3:0]  alu1_exec_rob = alu1_iss_valid ? alu1_rob :
+                            alu_bypass0_slot1 ? rob0_idx : rob1_idx;
+wire [63:0] alu1_exec_src1 = alu1_iss_valid ? alu1_src1 :
+                             alu_bypass0_slot1 ? r0_s_val : r1_s_val;
+wire [63:0] alu1_exec_src2 = alu1_iss_valid ? alu1_src2 :
+                             alu_bypass0_slot1 ? r0_t_val : r1_t_val;
+wire [11:0] alu1_exec_L = alu1_iss_valid ? alu1_iss_L :
+                          alu_bypass0_slot1 ? dec0_L : dec1_L;
+wire [63:0] alu1_exec_pc = alu1_iss_valid ? alu1_pc :
+                           alu_bypass0_slot1 ? f_pc0 : f_pc1;
+wire [63:0] alu1_exec_ft_pc = alu1_iss_valid ? alu1_ft_pc :
+                              alu_bypass0_slot1 ? (f_valid1 ? (f_pc0 + 64'd8) : (f_pc0 + 64'd4))
+                                                : (f_pc1 + 64'd4);
+wire [63:0] alu1_exec_pred_pc = alu1_iss_valid ? alu1_pred_pc :
+                                alu_bypass0_slot1 ? f_pred_pc0 : f_pred_pc1;
+wire [63:0] alu1_exec_rdv = alu1_iss_valid ? alu1_rdv :
+                            alu_bypass0_slot1 ? r0_old_val : r1_old_val;
+
 // ---------------------------------------------------------------------------
 // ALU combinational results
 // ---------------------------------------------------------------------------
@@ -528,7 +590,7 @@ rs #(.DEPTH(8)) alu_rs (
     .clk(clk), .reset(reset),
     .flush(flush_sig), .flush_rob_idx(flush_rob_idx),
     .rob_head_idx(rob_head_idx),
-    .disp0_en(dispatch0_en && dec0_uses_alu_rs),
+    .disp0_en(dispatch0_en && dec0_uses_alu_rs && !alu_disp0_bypassed),
     .disp0_op(dec0_op), .disp0_dest_preg(r0_new_preg), .disp0_rob_idx(rob0_idx),
     .disp0_s_preg(r0_s_preg), .disp0_s_val(r0_s_val), .disp0_s_rdy(r0_s_rdy), .disp0_s_block_cdb(1'b0),
     .disp0_t_preg(r0_t_preg), .disp0_t_val(r0_t_val), .disp0_t_rdy(r0_t_rdy), .disp0_t_block_cdb(1'b0),
@@ -537,7 +599,7 @@ rs #(.DEPTH(8)) alu_rs (
     .disp0_pred_pc(f_pred_pc0),
     .disp0_rd_preg(r0_old_preg), .disp0_rd_val(r0_old_val),
     .disp0_rd_rdy(is_brgt0 ? r0_old_rdy : 1'b1), .disp0_rd_block_cdb(1'b0),
-    .disp1_en(dispatch1_en && dec1_uses_alu_rs),
+    .disp1_en(dispatch1_en && dec1_uses_alu_rs && !alu_disp1_bypassed),
     .disp1_op(dec1_op), .disp1_dest_preg(r1_new_preg), .disp1_rob_idx(rob1_idx),
     .disp1_s_preg(r1_s_preg), .disp1_s_val(r1_s_val), .disp1_s_rdy(r1_s_rdy), .disp1_s_block_cdb(r1_s_dep),
     .disp1_t_preg(r1_t_preg), .disp1_t_val(r1_t_val), .disp1_t_rdy(r1_t_rdy), .disp1_t_block_cdb(r1_t_dep),
@@ -601,18 +663,18 @@ assign fpu1_src1=64'b0; assign fpu1_src2=64'b0;
 // ALU instances
 // ---------------------------------------------------------------------------
 alu_ls alu0_inst (
-    .opcode(alu0_op), .src1(alu0_src1), .src2(alu0_src2),
-    .L(alu0_iss_L), .pc(alu0_pc), .r31(arch_r31_wire), .mem_val(mem_rd_data),
-    .rd_val(alu0_rdv),
+    .opcode(alu0_exec_op), .src1(alu0_exec_src1), .src2(alu0_exec_src2),
+    .L(alu0_exec_L), .pc(alu0_exec_pc), .r31(arch_r31_wire), .mem_val(mem_rd_data),
+    .rd_val(alu0_exec_rdv),
     .result(alu0_result), .reg_write(alu0_reg_wr),
     .mem_write(alu0_mem_wr), .mem_addr(alu0_mem_addr), .mem_wdata(alu0_mem_wdata),
     .mem_read(alu0_mem_rd), .next_pc(alu0_next_pc)
 );
 
 alu_ls alu1_inst (
-    .opcode(alu1_op), .src1(alu1_src1), .src2(alu1_src2),
-    .L(alu1_iss_L), .pc(alu1_pc), .r31(arch_r31_wire), .mem_val(mem_rd_data),
-    .rd_val(alu1_rdv),
+    .opcode(alu1_exec_op), .src1(alu1_exec_src1), .src2(alu1_exec_src2),
+    .L(alu1_exec_L), .pc(alu1_exec_pc), .r31(arch_r31_wire), .mem_val(mem_rd_data),
+    .rd_val(alu1_exec_rdv),
     .result(alu1_result), .reg_write(alu1_reg_wr),
     .mem_write(alu1_mem_wr), .mem_addr(alu1_mem_addr), .mem_wdata(alu1_mem_wdata),
     .mem_read(alu1_mem_rd), .next_pc(alu1_next_pc)
@@ -630,57 +692,57 @@ always @(posedge clk) begin
         alu0_v_r <= 0; alu1_v_r <= 0;
         alu0_rw_r <= 0; alu1_rw_r <= 0;
     end else begin
-        alu0_is_branch = (alu0_op >= 5'h08 && alu0_op <= 5'h0e);
-        alu1_is_branch = (alu1_op >= 5'h08 && alu1_op <= 5'h0e);
-        alu0_taken_now = alu0_is_branch && (alu0_next_pc != alu0_pc + 64'd4);
-        alu1_taken_now = alu1_is_branch && (alu1_next_pc != alu1_pc + 64'd4);
+        alu0_is_branch = (alu0_exec_op >= 5'h08 && alu0_exec_op <= 5'h0e);
+        alu1_is_branch = (alu1_exec_op >= 5'h08 && alu1_exec_op <= 5'h0e);
+        alu0_taken_now = alu0_is_branch && (alu0_next_pc != alu0_exec_pc + 64'd4);
+        alu1_taken_now = alu1_is_branch && (alu1_next_pc != alu1_exec_pc + 64'd4);
         alu0_actual_fetch_pc =
-            (alu0_taken_now && (alu0_next_pc != (alu0_pc + 64'd4))) ? alu0_next_pc : alu0_ft_pc;
+            (alu0_taken_now && (alu0_next_pc != (alu0_exec_pc + 64'd4))) ? alu0_next_pc : alu0_exec_ft_pc;
         alu1_actual_fetch_pc =
-            (alu1_taken_now && (alu1_next_pc != (alu1_pc + 64'd4))) ? alu1_next_pc : alu1_ft_pc;
+            (alu1_taken_now && (alu1_next_pc != (alu1_exec_pc + 64'd4))) ? alu1_next_pc : alu1_exec_ft_pc;
 
-        alu0_v_r    <= alu0_iss_valid;
-        alu0_rw_r   <= alu0_iss_valid && alu0_reg_wr;
+        alu0_v_r    <= alu0_exec_valid;
+        alu0_rw_r   <= alu0_exec_valid && alu0_reg_wr;
         // For register-writing ops: result is alu0_result
         // For branches: result = next_pc (used by ROB for mis-pred detection)
         alu0_res_r  <= alu0_reg_wr ? alu0_result : alu0_next_pc;
-        alu0_dest_r <= alu0_dest;
-        alu0_rob_r  <= alu0_rob;
-        alu0_mis_r  <= alu0_iss_valid &&
+        alu0_dest_r <= alu0_exec_dest;
+        alu0_rob_r  <= alu0_exec_rob;
+        alu0_mis_r  <= alu0_exec_valid &&
                        alu0_is_branch &&
-                       (alu0_actual_fetch_pc != alu0_pred_pc);
+                       (alu0_actual_fetch_pc != alu0_exec_pred_pc);
         alu0_apc_r  <= alu0_actual_fetch_pc;
-        alu0_pc_r   <= alu0_pc;
-        alu0_br_r   <= alu0_iss_valid && alu0_is_branch;
+        alu0_pc_r   <= alu0_exec_pc;
+        alu0_br_r   <= alu0_exec_valid && alu0_is_branch;
         alu0_taken_r<= alu0_taken_now;
 
-        alu1_v_r    <= alu1_iss_valid;
-        alu1_rw_r   <= alu1_iss_valid && alu1_reg_wr;
+        alu1_v_r    <= alu1_exec_valid;
+        alu1_rw_r   <= alu1_exec_valid && alu1_reg_wr;
         alu1_res_r  <= alu1_reg_wr ? alu1_result : alu1_next_pc;
-        alu1_dest_r <= alu1_dest;
-        alu1_rob_r  <= alu1_rob;
-        alu1_mis_r  <= alu1_iss_valid &&
+        alu1_dest_r <= alu1_exec_dest;
+        alu1_rob_r  <= alu1_exec_rob;
+        alu1_mis_r  <= alu1_exec_valid &&
                        alu1_is_branch &&
-                       (alu1_actual_fetch_pc != alu1_pred_pc);
+                       (alu1_actual_fetch_pc != alu1_exec_pred_pc);
         alu1_apc_r  <= alu1_actual_fetch_pc;
-        alu1_pc_r   <= alu1_pc;
-        alu1_br_r   <= alu1_iss_valid && alu1_is_branch;
+        alu1_pc_r   <= alu1_exec_pc;
+        alu1_br_r   <= alu1_exec_valid && alu1_is_branch;
         alu1_taken_r<= alu1_taken_now;
     end
 end
 
 assign core_mem_rd_addr =
-    (alu0_iss_valid && alu0_mem_rd) ? alu0_mem_addr :
-    (alu1_iss_valid && alu1_mem_rd) ? alu1_mem_addr : mem_rd_addr;
+    (alu0_exec_valid && alu0_mem_rd) ? alu0_mem_addr :
+    (alu1_exec_valid && alu1_mem_rd) ? alu1_mem_addr : mem_rd_addr;
 assign core_mem_wr_en =
-    (alu0_iss_valid && alu0_mem_wr) ? 1'b1 :
-    (alu1_iss_valid && alu1_mem_wr) ? 1'b1 : mem_wr_en;
+    (alu0_exec_valid && alu0_mem_wr) ? 1'b1 :
+    (alu1_exec_valid && alu1_mem_wr) ? 1'b1 : mem_wr_en;
 assign core_mem_wr_addr =
-    (alu0_iss_valid && alu0_mem_wr) ? alu0_mem_addr :
-    (alu1_iss_valid && alu1_mem_wr) ? alu1_mem_addr : mem_wr_addr;
+    (alu0_exec_valid && alu0_mem_wr) ? alu0_mem_addr :
+    (alu1_exec_valid && alu1_mem_wr) ? alu1_mem_addr : mem_wr_addr;
 assign core_mem_wr_data =
-    (alu0_iss_valid && alu0_mem_wr) ? alu0_mem_wdata :
-    (alu1_iss_valid && alu1_mem_wr) ? alu1_mem_wdata : mem_wr_data;
+    (alu0_exec_valid && alu0_mem_wr) ? alu0_mem_wdata :
+    (alu1_exec_valid && alu1_mem_wr) ? alu1_mem_wdata : mem_wr_data;
 
 // ---------------------------------------------------------------------------
 // FPU instances

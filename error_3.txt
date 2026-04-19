@@ -24,5 +24,3 @@ Code:         176
 Data:         128
 CYCLES:        4110
 <stderr>:
-
-
