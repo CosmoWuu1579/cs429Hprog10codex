@@ -95,10 +95,16 @@ module rob (
     wire can_commit1 = can_commit0 && !r_is_halt[head] && !flush0 &&
                        r_valid[head1] && r_ready[head1] && !r_is_halt[head1];
     wire flush1 = can_commit1 && r_is_branch[head1] && r_mis_pred[head1];
+    wire [1:0] avail_commit_cnt =
+        (flush0 || (can_commit0 && r_is_halt[head])) ? 2'd0 :
+        flush1 ? 2'd1 :
+        can_commit1 ? 2'd2 :
+        can_commit0 ? 2'd1 : 2'd0;
+    wire [4:0] eff_count = count - {3'b0, avail_commit_cnt};
     assign alloc0_idx = tail;
     assign alloc1_idx = tail + 1'b1;
-    assign rob_full = (count >= ROB_SIZE - 1);
-    assign rob_one_avail = (count < ROB_SIZE);
+    assign rob_full = (eff_count >= ROB_SIZE - 1);
+    assign rob_one_avail = (eff_count < ROB_SIZE);
     assign rob_head_idx = head;
 
     integer i;

@@ -146,17 +146,23 @@ module rat (
     reg [5:0] free1_idx;
     reg       found0;
     reg       found1;
+    reg [63:0] avail_free_list;
 
     always @(*) begin
+        avail_free_list = free_list;
+        if (commit0_en && commit0_old >= 6'd32)
+            avail_free_list[commit0_old] = 1'b1;
+        if (commit1_en && commit1_old >= 6'd32)
+            avail_free_list[commit1_old] = 1'b1;
         free0_idx = 6'd0;
         free1_idx = 6'd0;
         found0 = 1'b0;
         found1 = 1'b0;
         for (i = 0; i < NPHYS; i = i + 1) begin
-            if (!found0 && free_list[i]) begin
+            if (!found0 && avail_free_list[i]) begin
                 free0_idx = i[5:0];
                 found0 = 1'b1;
-            end else if (!found1 && free_list[i]) begin
+            end else if (!found1 && avail_free_list[i]) begin
                 free1_idx = i[5:0];
                 found1 = 1'b1;
             end
