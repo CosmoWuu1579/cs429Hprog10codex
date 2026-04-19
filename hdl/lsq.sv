@@ -48,9 +48,9 @@ module lsq (
     output wire        ld_two_avail,
     output wire        st_one_avail
 );
-    localparam LQ_DEPTH = 4;
+    localparam LQ_DEPTH = 8;
     localparam SQ_DEPTH = 4;
-    localparam CQ_DEPTH = 4;
+    localparam CQ_DEPTH = 8;
 
     reg        lq_v    [0:LQ_DEPTH-1];
     reg [5:0]  lq_preg [0:LQ_DEPTH-1];
@@ -71,10 +71,10 @@ module lsq (
 
     reg [1:0] sq_head, sq_tail;
     reg [2:0] sq_count;
-    reg [1:0] lq_head, lq_tail;
-    reg [2:0] lq_count;
-    reg [1:0] cq_head, cq_tail;
-    reg [2:0] cq_count;
+    reg [2:0] lq_head, lq_tail;
+    reg [3:0] lq_count;
+    reg [2:0] cq_head, cq_tail;
+    reg [3:0] cq_count;
 
     integer i;
     reg [63:0] fwd_data;
@@ -82,7 +82,7 @@ module lsq (
     reg        store_commit_fire;
     reg        load_issue_fire;
     reg [63:0] load_issue_data;
-    reg [2:0]  eff_cq_count;
+    reg [3:0]  eff_cq_count;
 
     assign ld_full = (lq_count >= LQ_DEPTH - 1) || (eff_cq_count >= CQ_DEPTH - 1);
     assign st_full = (sq_count >= SQ_DEPTH - 1);
@@ -113,7 +113,7 @@ module lsq (
     end
 
     always @(*) begin
-        eff_cq_count = cq_count - ((ld_cdb_valid && ld_cdb_grant) ? 3'd1 : 3'd0);
+        eff_cq_count = cq_count - ((ld_cdb_valid && ld_cdb_grant) ? 4'd1 : 4'd0);
         load_issue_fire = lq_v[lq_head] && (cq_count < CQ_DEPTH);
         load_issue_data = fwd_found ? fwd_data : mem_rd_data;
     end

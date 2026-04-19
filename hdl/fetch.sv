@@ -121,8 +121,8 @@ module fetch (
         end
     endfunction
 
-    assign fetch_pc0 = pc;
-    assign fetch_pc1 = pc + 4;
+    assign fetch_pc0 = flush ? flush_pc : pc;
+    assign fetch_pc1 = flush ? (flush_pc + 64'd4) : (pc + 64'd4);
 
     always @(posedge clk) begin
         if (reset) begin

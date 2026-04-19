@@ -634,8 +634,10 @@ always @(posedge clk) begin
         alu1_is_branch = (alu1_op >= 5'h08 && alu1_op <= 5'h0e);
         alu0_taken_now = alu0_is_branch && (alu0_next_pc != alu0_pc + 64'd4);
         alu1_taken_now = alu1_is_branch && (alu1_next_pc != alu1_pc + 64'd4);
-        alu0_actual_fetch_pc = alu0_taken_now ? alu0_next_pc : alu0_ft_pc;
-        alu1_actual_fetch_pc = alu1_taken_now ? alu1_next_pc : alu1_ft_pc;
+        alu0_actual_fetch_pc =
+            (alu0_taken_now && (alu0_next_pc != (alu0_pc + 64'd4))) ? alu0_next_pc : alu0_ft_pc;
+        alu1_actual_fetch_pc =
+            (alu1_taken_now && (alu1_next_pc != (alu1_pc + 64'd4))) ? alu1_next_pc : alu1_ft_pc;
 
         alu0_v_r    <= alu0_iss_valid;
         alu0_rw_r   <= alu0_iss_valid && alu0_reg_wr;
@@ -646,8 +648,7 @@ always @(posedge clk) begin
         alu0_rob_r  <= alu0_rob;
         alu0_mis_r  <= alu0_iss_valid &&
                        alu0_is_branch &&
-                       ((alu0_actual_fetch_pc != alu0_pred_pc) ||
-                        (alu0_taken_now && (alu0_ft_pc != (alu0_pc + 64'd4))));
+                       (alu0_actual_fetch_pc != alu0_pred_pc);
         alu0_apc_r  <= alu0_actual_fetch_pc;
         alu0_pc_r   <= alu0_pc;
         alu0_br_r   <= alu0_iss_valid && alu0_is_branch;
@@ -660,8 +661,7 @@ always @(posedge clk) begin
         alu1_rob_r  <= alu1_rob;
         alu1_mis_r  <= alu1_iss_valid &&
                        alu1_is_branch &&
-                       ((alu1_actual_fetch_pc != alu1_pred_pc) ||
-                        (alu1_taken_now && (alu1_ft_pc != (alu1_pc + 64'd4))));
+                       (alu1_actual_fetch_pc != alu1_pred_pc);
         alu1_apc_r  <= alu1_actual_fetch_pc;
         alu1_pc_r   <= alu1_pc;
         alu1_br_r   <= alu1_iss_valid && alu1_is_branch;
