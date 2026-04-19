@@ -3,25 +3,24 @@ Comparison mode: cycles only
 Zero-credit reference: opt_none
 Full-credit reference: opt_branch_pred
 Latency normalization: ALU student=3.0 ref=3.0, FPU student=3.0 ref=3.0
-Branch performance raw points: 9.47 / 20 (unrounded 9.470)
+Branch performance raw points: 0.00 / 20 (unrounded 0.000)
 Benchmark score curve exponent: 1.00
 Branch performance scale: 1.0000 (correctness gate: 1.0000^1.00)
-Branch performance final points: 9.47 / 20 (unrounded after scale 9.470)
+Branch performance final points: 0.00 / 20 (unrounded after scale 0.000)
 Test                  Correct   Cycles    Score     Message                           
 --------------------------------------------------------------------------------------
-branch_loop           True      27209     0.47      Adjusted cycles 27209 (raw 27209, offset 0)
+branch_loop           False     -1        0.00      Timeout after 20 sec              
 
 [generated/benchmarks | branch_loop]:
-<performance>: {'status': 'ok', 'comparison_mode': 'cycles', 'student_cycles': 27209, 'adjusted_student_cycles': 27209, 'cycle_adjustment': 0, 'raw_zero_credit_cycles': 33022, 'raw_full_credit_cycles': 20745, 'zero_credit_cycle_adjustment': 0, 'full_credit_cycle_adjustment': 0, 'zero_credit_cycles': 33022, 'full_credit_cycles': 20745, 'unadjusted_linear_score_ratio': 0.4734870082267655, 'unadjusted_score_ratio': 0.4734870082267655, 'linear_score_ratio': 0.4734870082267655, 'grace_points': 0.0}
-<cycles>: 27209
-<adjusted_cycles>: 27209
+<performance>: {'status': 'correctness_failed'}
+<cycles>: -1
+<adjusted_cycles>: -1
 <cycle_adjustment>: 0
 <grace_points>: 0.0
-<message>: Adjusted cycles 27209 (raw 27209, offset 0)
+<message>: Timeout after 20 sec
 <stdout>:
-Header:          40
-Code:         324
-Data:           0
-CYCLES:       27209
+stdout not found
 <stderr>:
-
+stderr not found
+<expected_state>: None
+<student_state>: None

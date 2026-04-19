@@ -206,64 +206,34 @@ module rs #(
     assign one_avail = (free_count != 0);
     assign two_avail = (free_count >= 2);
 
-    always @(*) begin
-        issue_valid = 0;
-        issue_op = 0;
-        issue_dest_preg = 0;
-        issue_rob_idx = 0;
-        issue_src1 = 0;
-        issue_src2 = 0;
-        issue_L = 0;
-        issue_pc = 0;
-        issue_ft_pc = 0;
-        issue_pred_pc = 0;
-        issue_rd_val = 0;
-        issue2_valid = 0;
-        issue2_op = 0;
-        issue2_dest_preg = 0;
-        issue2_rob_idx = 0;
-        issue2_src1 = 0;
-        issue2_src2 = 0;
-        issue2_L = 0;
-        issue2_pc = 0;
-        issue2_ft_pc = 0;
-        issue2_pred_pc = 0;
-        issue2_rd_val = 0;
-
-        if (!(reset || flush)) begin
-            if (sel_found) begin
-                issue_valid = 1;
-                issue_op = op[sel];
-                issue_dest_preg = dest_pr[sel];
-                issue_rob_idx = rob_idx[sel];
-                issue_src1 = operand_value_now(s_rdy[sel], s_preg[sel], s_val[sel]);
-                issue_src2 = operand_value_now(t_rdy[sel], t_preg[sel], t_val[sel]);
-                issue_L = L_f[sel];
-                issue_pc = pc_f[sel];
-                issue_ft_pc = ft_pc_f[sel];
-                issue_pred_pc = pred_pc_f[sel];
-                issue_rd_val = operand_value_now(rd_rdy[sel], rd_preg[sel], rd_val[sel]);
-            end
-            if (sel2_found) begin
-                issue2_valid = 1;
-                issue2_op = op[sel2];
-                issue2_dest_preg = dest_pr[sel2];
-                issue2_rob_idx = rob_idx[sel2];
-                issue2_src1 = operand_value_now(s_rdy[sel2], s_preg[sel2], s_val[sel2]);
-                issue2_src2 = operand_value_now(t_rdy[sel2], t_preg[sel2], t_val[sel2]);
-                issue2_L = L_f[sel2];
-                issue2_pc = pc_f[sel2];
-                issue2_ft_pc = ft_pc_f[sel2];
-                issue2_pred_pc = pred_pc_f[sel2];
-                issue2_rd_val = operand_value_now(rd_rdy[sel2], rd_preg[sel2], rd_val[sel2]);
-            end
-        end
-    end
-
     always @(posedge clk) begin
         if (reset || flush) begin
             for (i = 0; i < DEPTH; i = i + 1) v[i] <= 0;
+            issue_valid <= 0;
+            issue_op <= 0;
+            issue_dest_preg <= 0;
+            issue_rob_idx <= 0;
+            issue_src1 <= 0;
+            issue_src2 <= 0;
+            issue_L <= 0;
+            issue_pc <= 0;
+            issue_ft_pc <= 0;
+            issue_pred_pc <= 0;
+            issue_rd_val <= 0;
+            issue2_valid <= 0;
+            issue2_op <= 0;
+            issue2_dest_preg <= 0;
+            issue2_rob_idx <= 0;
+            issue2_src1 <= 0;
+            issue2_src2 <= 0;
+            issue2_L <= 0;
+            issue2_pc <= 0;
+            issue2_ft_pc <= 0;
+            issue2_pred_pc <= 0;
+            issue2_rd_val <= 0;
         end else begin
+            issue_valid <= 0;
+            issue2_valid <= 0;
             for (i = 0; i < DEPTH; i = i + 1) begin
                 if (v[i]) begin
                     if (!s_rdy[i]) begin
@@ -289,8 +259,34 @@ module rs #(
                     end
                 end
             end
-            if (sel_found) v[sel] <= 0;
-            if (sel2_found) v[sel2] <= 0;
+            if (sel_found) begin
+                issue_valid <= 1;
+                issue_op <= op[sel];
+                issue_dest_preg <= dest_pr[sel];
+                issue_rob_idx <= rob_idx[sel];
+                issue_src1 <= operand_value_now(s_rdy[sel], s_preg[sel], s_val[sel]);
+                issue_src2 <= operand_value_now(t_rdy[sel], t_preg[sel], t_val[sel]);
+                issue_L <= L_f[sel];
+                issue_pc <= pc_f[sel];
+                issue_ft_pc <= ft_pc_f[sel];
+                issue_pred_pc <= pred_pc_f[sel];
+                issue_rd_val <= operand_value_now(rd_rdy[sel], rd_preg[sel], rd_val[sel]);
+                v[sel] <= 0;
+            end
+            if (sel2_found) begin
+                issue2_valid <= 1;
+                issue2_op <= op[sel2];
+                issue2_dest_preg <= dest_pr[sel2];
+                issue2_rob_idx <= rob_idx[sel2];
+                issue2_src1 <= operand_value_now(s_rdy[sel2], s_preg[sel2], s_val[sel2]);
+                issue2_src2 <= operand_value_now(t_rdy[sel2], t_preg[sel2], t_val[sel2]);
+                issue2_L <= L_f[sel2];
+                issue2_pc <= pc_f[sel2];
+                issue2_ft_pc <= ft_pc_f[sel2];
+                issue2_pred_pc <= pred_pc_f[sel2];
+                issue2_rd_val <= operand_value_now(rd_rdy[sel2], rd_preg[sel2], rd_val[sel2]);
+                v[sel2] <= 0;
+            end
             if (disp0_en && fnd0) begin
                 v[free0] <= 1;
                 op[free0] <= disp0_op;
