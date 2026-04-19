@@ -1,28 +1,26 @@
-[generated/benchmarks]         Dual-issue performance scoring complete
+[generated/benchmarks]         Memory performance scoring complete
 Comparison mode: cycles only
-Zero-credit reference: opt_none
-Full-credit reference: opt_multi_issue
+Zero-credit reference: opt_branch_pred
+Full-credit reference: opt_branch_pred_lsq
 Latency normalization: ALU student=3.0 ref=3.0, FPU student=3.0 ref=3.0
-Dual-issue performance raw points: 0.00 / 10 (unrounded 0.000)
-Benchmark score curve exponent: 0.50
-Dual-issue performance scale: 1.0000 (correctness gate: 1.0000^1.00)
-Dual-issue performance final points: 0.00 / 10 (unrounded after scale 0.000)
+Memory performance raw points: 2.94 / 10 (unrounded 2.945)
+Benchmark score curve exponent: 1.00
+Memory performance scale: 1.0000 (correctness gate: 1.0000^1.00)
+Memory performance final points: 2.94 / 10 (unrounded after scale 2.945)
 Test                  Correct   Cycles    Score     Message                           
 --------------------------------------------------------------------------------------
-multi_issue           True      603       0.00      Adjusted cycles 603 (raw 603, offset 0)
+memory_stream         True      4108      0.29      Adjusted cycles 4108 (raw 4108, offset 0)
 
-[generated/benchmarks | multi_issue]:
-<performance>: {'status': 'ok', 'comparison_mode': 'cycles', 'student_cycles': 603, 'adjusted_student_cycles': 603, 'cycle_adjustment': 0, 'raw_zero_credit_cycles': 566, 'raw_full_credit_cycles': 447, 'zero_credit_cycle_adjustment': 0, 'full_credit_cycle_adjustment': 0, 'zero_credit_cycles': 566, 'full_credit_cycles': 447, 'unadjusted_linear_score_ratio': 0.0, 'unadjusted_score_ratio': 0.0, 'linear_score_ratio': 0.0, 'grace_points': 0.0}
-<cycles>: 603
-<adjusted_cycles>: 603
+[generated/benchmarks | memory_stream]:
+<performance>: {'status': 'ok', 'comparison_mode': 'cycles', 'student_cycles': 4108, 'adjusted_student_cycles': 4108, 'cycle_adjustment': 0, 'raw_zero_credit_cycles': 4669, 'raw_full_credit_cycles': 2764, 'zero_credit_cycle_adjustment': 0, 'full_credit_cycle_adjustment': 0, 'zero_credit_cycles': 4669, 'full_credit_cycles': 2764, 'unadjusted_linear_score_ratio': 0.29448818897637796, 'unadjusted_score_ratio': 0.29448818897637796, 'linear_score_ratio': 0.29448818897637796, 'grace_points': 0.0}
+<cycles>: 4108
+<adjusted_cycles>: 4108
 <cycle_adjustment>: 0
 <grace_points>: 0.0
-<message>: Adjusted cycles 603 (raw 603, offset 0)
+<message>: Adjusted cycles 4108 (raw 4108, offset 0)
 <stdout>:
 Header:          40
-Code:        1284
-Data:           0
-Loaded additional state from                                                                                                                                                                                                       ./tests/generated/benchmarks/multi_issue/multi_issue.state
-CYCLES:         603
+Code:         176
+Data:         128
+CYCLES:        4108
 <stderr>:
-

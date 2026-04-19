@@ -81,6 +81,7 @@ module lsq (
     reg        fwd_found;
     reg        store_commit_fire;
     reg        load_issue_fire;
+    reg        load_direct_cdb_fire;
     reg [63:0] load_issue_data;
     reg [3:0]  eff_cq_count;
 
@@ -115,6 +116,7 @@ module lsq (
     always @(*) begin
         eff_cq_count = cq_count - ((ld_cdb_valid && ld_cdb_grant) ? 4'd1 : 4'd0);
         load_issue_fire = lq_v[lq_head] && (cq_count < CQ_DEPTH);
+        load_direct_cdb_fire = load_issue_fire && !ld_cdb_valid && (cq_count == 0);
         load_issue_data = fwd_found ? fwd_data : mem_rd_data;
     end
 
@@ -196,22 +198,40 @@ module lsq (
             end
 
             if (load_issue_fire) begin
-                cq_v[cq_tail] <= 1;
-                cq_data[cq_tail] <= load_issue_data;
-                cq_preg[cq_tail] <= lq_preg[lq_head];
-                cq_rob[cq_tail] <= lq_rob[lq_head];
-                cq_tail <= cq_tail + 1'b1;
+                if (load_direct_cdb_fire) begin
+                    ld_cdb_valid <= 1;
+                    ld_cdb_data <= load_issue_data;
+                    ld_cdb_preg <= lq_preg[lq_head];
+                    ld_cdb_rob <= lq_rob[lq_head];
+                end else begin
+                    cq_v[cq_tail] <= 1;
+                    cq_data[cq_tail] <= load_issue_data;
+                    cq_preg[cq_tail] <= lq_preg[lq_head];
+                    cq_rob[cq_tail] <= lq_rob[lq_head];
+                    cq_tail <= cq_tail + 1'b1;
+                    cq_push = 1;
+                end
                 lq_v[lq_head] <= 0;
                 lq_pop = 1;
-                cq_push = 1;
             end
 
             if (ld_cdb_valid) begin
                 if (ld_cdb_grant) begin
-                    ld_cdb_valid <= 0;
-                    cq_v[cq_head] <= 0;
-                    cq_head <= cq_head + 1'b1;
-                    cq_pop = 1;
+                    if (cq_v[cq_head]) begin
+                        cq_v[cq_head] <= 0;
+                        cq_head <= cq_head + 1'b1;
+                        cq_pop = 1;
+                        if (cq_count > 4'd1) begin
+                            ld_cdb_valid <= 1;
+                            ld_cdb_data <= cq_data[cq_head + 1'b1];
+                            ld_cdb_preg <= cq_preg[cq_head + 1'b1];
+                            ld_cdb_rob <= cq_rob[cq_head + 1'b1];
+                        end else begin
+                            ld_cdb_valid <= 0;
+                        end
+                    end else begin
+                        ld_cdb_valid <= 0;
+                    end
                 end
             end else if (cq_v[cq_head]) begin
                 ld_cdb_valid <= 1;

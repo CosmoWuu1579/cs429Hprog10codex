@@ -90,11 +90,46 @@ module rob (
     reg [4:0]  count; // 0..16
 
     wire [3:0] head1 = head + 1'b1;
-    wire can_commit0 = r_valid[head] && r_ready[head];
-    wire flush0 = can_commit0 && r_is_branch[head] && r_mis_pred[head];
+    wire head_cdb0_hit = cdb0_valid && (cdb0_rob_idx == head);
+    wire head_cdb1_hit = cdb1_valid && (cdb1_rob_idx == head);
+    wire head1_cdb0_hit = cdb0_valid && (cdb0_rob_idx == head1);
+    wire head1_cdb1_hit = cdb1_valid && (cdb1_rob_idx == head1);
+
+    wire head_ready_now = r_ready[head] || head_cdb0_hit || head_cdb1_hit;
+    wire head1_ready_now = r_ready[head1] || head1_cdb0_hit || head1_cdb1_hit;
+
+    wire [63:0] head_result_now =
+        head_cdb1_hit ? cdb1_result :
+        head_cdb0_hit ? cdb0_result :
+        r_result[head];
+    wire [63:0] head1_result_now =
+        head1_cdb1_hit ? cdb1_result :
+        head1_cdb0_hit ? cdb0_result :
+        r_result[head1];
+
+    wire head_mis_pred_now =
+        head_cdb1_hit ? cdb1_mis_pred :
+        head_cdb0_hit ? cdb0_mis_pred :
+        r_mis_pred[head];
+    wire head1_mis_pred_now =
+        head1_cdb1_hit ? cdb1_mis_pred :
+        head1_cdb0_hit ? cdb0_mis_pred :
+        r_mis_pred[head1];
+
+    wire [63:0] head_actual_pc_now =
+        head_cdb1_hit ? cdb1_actual_pc :
+        head_cdb0_hit ? cdb0_actual_pc :
+        r_actual_pc[head];
+    wire [63:0] head1_actual_pc_now =
+        head1_cdb1_hit ? cdb1_actual_pc :
+        head1_cdb0_hit ? cdb0_actual_pc :
+        r_actual_pc[head1];
+
+    wire can_commit0 = r_valid[head] && head_ready_now;
+    wire flush0 = can_commit0 && r_is_branch[head] && head_mis_pred_now;
     wire can_commit1 = can_commit0 && !r_is_halt[head] && !flush0 &&
-                       r_valid[head1] && r_ready[head1] && !r_is_halt[head1];
-    wire flush1 = can_commit1 && r_is_branch[head1] && r_mis_pred[head1];
+                       r_valid[head1] && head1_ready_now && !r_is_halt[head1];
+    wire flush1 = can_commit1 && r_is_branch[head1] && head1_mis_pred_now;
     wire [1:0] avail_commit_cnt =
         (flush0 || (can_commit0 && r_is_halt[head])) ? 2'd0 :
         flush1 ? 2'd1 :
@@ -114,7 +149,7 @@ module rob (
         commit0_areg = r_dareg[head];
         commit0_preg = r_dpreg[head];
         commit0_old_preg = r_old_preg[head];
-        commit0_result = r_result[head];
+        commit0_result = head_result_now;
         commit0_reg_write = r_reg_write[head];
         commit0_is_store = r_is_store[head];
 
@@ -122,7 +157,7 @@ module rob (
         commit1_areg = r_dareg[head1];
         commit1_preg = r_dpreg[head1];
         commit1_old_preg = r_old_preg[head1];
-        commit1_result = r_result[head1];
+        commit1_result = head1_result_now;
         commit1_reg_write = r_reg_write[head1];
         commit1_is_store = r_is_store[head1];
     end
@@ -174,7 +209,7 @@ module rob (
                     hlt <= 1;
                 end else if (flush0) begin
                     flush          <= 1;
-                    flush_pc       <= r_actual_pc[head];
+                    flush_pc       <= head_actual_pc_now;
                     flush_rat_snap <= r_rat_snap [head];
                     flush_rob_idx  <= head;
                     do_flush       = 1;
@@ -186,7 +221,7 @@ module rob (
 
                         if (flush1) begin
                             flush          <= 1;
-                            flush_pc       <= r_actual_pc[head1];
+                            flush_pc       <= head1_actual_pc_now;
                             flush_rat_snap <= r_rat_snap [head1];
                             flush_rob_idx  <= head1;
                             do_flush       = 1;

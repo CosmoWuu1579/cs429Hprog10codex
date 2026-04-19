@@ -115,7 +115,7 @@ module tb_trace_memory_stream_cycles;
                 last_commit_cycle = cyc;
             stuck_cycles = cyc - last_commit_cycle;
 
-            $display("TRACE mem cyc=%0d pc=%h disp0=%b/%h disp1=%b/%h rob=%0d lq=%0d cq=%0d sq=%0d stall=%b slot0=%b slot1=%b ldv=%b grant=%b hlt=%b r21=%0d",
+            $display("TRACE mem cyc=%0d pc=%h disp0=%b/%h disp1=%b/%h rob=%0d lq=%0d cq=%0d sq=%0d stall=%b slot0=%b slot1=%b rob1=%b rob2=%b free1=%b free2=%b ld1=%b ld2=%b alu1=%b alu2=%b ldv=%b grant=%b hlt=%b r21=%0d",
                 cyc,
                 dut.fetch_unit.fetch_pc0,
                 dut.dispatch0_en, dut.f_instr0,
@@ -127,6 +127,14 @@ module tb_trace_memory_stream_cycles;
                 dut.stall,
                 dut.slot0_ok,
                 dut.slot1_ok,
+                dut.rob_one_avail,
+                !dut.rob_full,
+                dut.free_one_avail,
+                dut.free_avail,
+                dut.ld_one_avail,
+                dut.ld_two_avail,
+                dut.alu_rs_one_avail,
+                dut.alu_rs_two_avail,
                 dut.lsq_ld_cdb_v,
                 dut.lsq_ld_cdb_grant,
                 hlt,
