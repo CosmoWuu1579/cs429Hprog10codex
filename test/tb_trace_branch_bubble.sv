@@ -76,13 +76,16 @@ module tb_trace_branch_bubble;
         for (cyc = 0; cyc < 300; cyc = cyc + 1) begin
             @(posedge clk);
 
-            if (dut.dispatch0_en && dut.dec0_is_branch) begin
+            if (dut.dispatch0_en &&
+                (dut.f_instr0[31:27] >= 5'h08 && dut.f_instr0[31:27] <= 5'h0e)) begin
                 $display("TRACE br disp0 cyc=%0d pc=%h instr=%h pred=%h ft=%h",
-                    cyc, dut.f_pc0, dut.f_instr0, dut.f_pred_pc0, dut.alu_rs.disp0_ft_pc);
+                    cyc, dut.f_pc0, dut.f_instr0, dut.f_pred_pc0,
+                    (dut.f_valid1 ? (dut.f_pc0 + 64'd8) : (dut.f_pc0 + 64'd4)));
             end
-            if (dut.dispatch1_en && dut.dec1_is_branch) begin
+            if (dut.dispatch1_en &&
+                (dut.f_instr1[31:27] >= 5'h08 && dut.f_instr1[31:27] <= 5'h0e)) begin
                 $display("TRACE br disp1 cyc=%0d pc=%h instr=%h pred=%h ft=%h",
-                    cyc, dut.f_pc1, dut.f_instr1, dut.f_pred_pc1, dut.alu_rs.disp1_ft_pc);
+                    cyc, dut.f_pc1, dut.f_instr1, dut.f_pred_pc1, (dut.f_pc1 + 64'd4));
             end
 
             if (dut.alu0_v_r && dut.alu0_br_r && dut.alu0_taken_r) begin
